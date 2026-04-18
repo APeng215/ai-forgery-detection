@@ -1,0 +1,29 @@
+model:
+  image_size_cls: 224
+  image_size_seg: 256
+  backbone_out_channels: 2048
+  segmentation_hidden_channels: 256
+  explanation_feature_dim: 256
+
+train:
+  seed: 42
+  batch_size: 8
+  num_workers: 4
+  mixed_precision: true
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  epochs_stage_a: 5
+  epochs_stage_b: 10
+  cls_weight: 1.0
+  loc_weight: 1.0
+  exp_weight: 0.5
+  imagenet_fake_sample_limit: 10000
+  imagenet_real_sample_limit: 10000
+  synthscars_val_ratio: 0.1
+
+data:
+  imagenet_roots:
+    - data/imagenet_ai_0508_adm
+    - data/imagenet_ai_0419_biggan
+  synthscars_root: data/SynthScars
+  course_root: data/2026-课设数据集
