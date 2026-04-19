@@ -265,10 +265,55 @@ python infer_multitask.py path/to/image.png --config configs/multitask.yaml --ch
 - `fake_score`
 - `explanation`
 - `mask_path`
+- `explanation_source`
 
 同时会在输入图片同目录下生成：
 
 - `<image_stem>_pred_mask.png`
+
+### 6. 远程 explanation 增强（可选）
+
+如果你希望在本地模型输出之后，再用阿里云 `qwen3-vl-plus` 对 explanation 做增强，推荐在**项目内本地配置文件**里放 key，而不是改公共配置。
+
+1. 复制一份本地覆盖配置：
+
+```powershell
+Copy-Item configs/multitask.local.example.yaml configs/multitask.local.yaml
+```
+
+2. 编辑 `configs/multitask.local.yaml`，填入你的 key：
+
+```yaml
+inference:
+  remote_explanation:
+    enabled: true
+    api_key: "你的阿里云 Model Studio Key"
+```
+
+说明：
+
+- `load_config()` 会先读取 `configs/multitask.yaml`
+- 如果存在 `configs/multitask.local.yaml`，会自动把它覆盖合并进来
+- `configs/*.local.yaml` 已加入 `.gitignore`，不会提交到仓库
+
+3. 然后直接运行：
+
+```powershell
+python infer_multitask.py path/to/image.png --config configs/multitask.yaml --checkpoint outputs/best.pt
+```
+
+如果你更喜欢环境变量，也仍然支持：
+
+```powershell
+$env:DASHSCOPE_API_KEY="你的阿里云 Model Studio Key"
+```
+
+此时：
+
+- `label`、`fake_score`、`mask_path` 仍来自本地模型
+- `explanation` 会优先使用 `qwen3-vl-plus` 生成的增强结果
+- `explanation_source` 会标记为 `remote`、`local` 或 `local_fallback`
+- 如果既没有配置 `remote_explanation.api_key`，也没有配置 `DASHSCOPE_API_KEY`，脚本会自动回退到本地 explanation
 
 ---
 
@@ -307,7 +352,18 @@ python infer_multitask.py path/to/image.png --config configs/multitask.yaml --ch
 - `synthscars_root`
 - `course_root`
 
-如果团队成员更换机器或目录布局，通常只需要先检查和修改 `data` 部分路径。
+### inference
+
+- `remote_explanation.enabled`
+- `remote_explanation.provider`
+- `remote_explanation.model`
+- `remote_explanation.api_base`
+- `remote_explanation.api_key`
+- `remote_explanation.api_key_env`
+- `remote_explanation.timeout_sec`
+- `remote_explanation.fallback_to_local`
+
+如果团队成员更换机器或目录布局，通常只需要先检查和修改 `data` 部分路径。若要启用线上 explanation，推荐把私有 key 放在 `configs/multitask.local.yaml` 中，只把公共开关和公共接口地址保留在 `configs/multitask.yaml`。
 
 ---
 
@@ -339,6 +395,8 @@ python train_multitask.py --config configs/multitask_smoke.yaml --output outputs
 - 没有 CUDA 时回退到 CPU
 
 因此单图推理对环境要求更宽松。
+
+如果同时启用了远程 explanation 增强，还会额外发起一次可选的线上多模态请求；这一步失败时会自动回退到本地 explanation，不影响本地分类和 mask 输出。
 
 ### 3. 训练输出
 
