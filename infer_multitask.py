@@ -7,10 +7,11 @@ from PIL import Image
 import torch
 from torchvision import transforms
 
+from src.datasets.multitask_dataset import SynthScarsDataset
+from src.inference import enhance_explanation
 from src.models.multitask_model import MultiTaskForgeryModel
 from src.training.losses import TextFeatureEncoder
 from src.training.utils import load_config
-from src.datasets.multitask_dataset import SynthScarsDataset
 
 
 def build_candidate_bank(dataset: SynthScarsDataset, text_encoder: TextFeatureEncoder, device: torch.device):
@@ -61,7 +62,33 @@ def main() -> None:
     mask_image = transforms.ToPILImage()(mask)
     mask_image.save(output_mask_path)
 
-    print({"label": label, "fake_score": cls_prob, "explanation": explanation, "mask_path": str(output_mask_path)})
+    local_result = {
+        "label": label,
+        "fake_score": cls_prob,
+        "explanation": explanation,
+        "mask_path": str(output_mask_path),
+    }
+    remote_result = enhance_explanation(args.image_path, output_mask_path, local_result, cfg)
+
+    final_result = {
+        "label": label,
+        "fake_score": cls_prob,
+        "explanation": remote_result["explanation"],
+        "mask_path": str(output_mask_path),
+        "explanation_source": remote_result["source"],
+    }
+    if remote_result.get("evidence_points"):
+        final_result["evidence_points"] = remote_result["evidence_points"]
+    if remote_result.get("confidence") is not None:
+        final_result["explanation_confidence"] = remote_result["confidence"]
+    if "need_human_review" in remote_result:
+        final_result["need_human_review"] = remote_result["need_human_review"]
+    if remote_result.get("source") == "remote":
+        final_result["local_explanation"] = explanation
+    if remote_result.get("fallback_reason"):
+        final_result["fallback_reason"] = remote_result["fallback_reason"]
+
+    print(final_result)
 
 
 if __name__ == "__main__":

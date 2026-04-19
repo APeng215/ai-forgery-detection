@@ -27,3 +27,13 @@ data:
     - data/imagenet_ai_0419_biggan
   synthscars_root: data/SynthScars
   course_root: data/2026-课设数据集
+
+inference:
+  remote_explanation:
+    enabled: false
+    provider: aliyun_model_studio
+    model: qwen3-vl-plus
+    api_base: https://dashscope.aliyuncs.com/compatible-mode/v1
+    api_key_env: DASHSCOPE_API_KEY
+    timeout_sec: 20
+    fallback_to_local: true

@@ -3,6 +3,9 @@
 .vscode/
 .idea/
 
+.cache/
+configs/*.local.yaml
+
 data/
 outputs/
 outputs_*/
