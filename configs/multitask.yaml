@@ -27,3 +27,16 @@ data:
     - data/imagenet_ai_0419_biggan
   synthscars_root: data/SynthScars
   course_root: data/2026-课设数据集
+
+distill:
+  enabled: false
+  mode: offline_cache
+  cache_path: ""
+  stage_b_only: true
+  ema_decay: 0.999
+  temperature: 4.0
+  total_weight: 0.5
+  cls_weight: 1.0
+  exp_weight: 0.5
+  exp_mode: cosine
+  strict: false

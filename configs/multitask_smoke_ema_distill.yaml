@@ -33,14 +33,14 @@ data:
   course_root: data/2026-课设数据集
 
 distill:
-  enabled: false
-  mode: offline_cache
+  enabled: true
+  mode: ema_online
   cache_path: ""
   stage_b_only: true
   ema_decay: 0.999
-  temperature: 4.0
-  total_weight: 0.5
+  temperature: 3.0
+  total_weight: 0.3
   cls_weight: 1.0
-  exp_weight: 0.5
+  exp_weight: 0.3
   exp_mode: cosine
   strict: false

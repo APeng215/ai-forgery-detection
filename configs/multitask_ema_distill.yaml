@@ -7,23 +7,19 @@ model:
 
 train:
   seed: 42
-  batch_size: 2
-  num_workers: 0
-  mixed_precision: false
+  batch_size: 8
+  num_workers: 4
+  mixed_precision: true
   learning_rate: 0.0003
   weight_decay: 0.0001
-  epochs_stage_a: 1
-  epochs_stage_b: 1
+  epochs_stage_a: 5
+  epochs_stage_b: 10
   cls_weight: 1.0
   loc_weight: 1.0
   exp_weight: 0.5
-  imagenet_fake_sample_limit: 8
-  imagenet_real_sample_limit: 8
-  imagenet_val_fake_sample_limit: 32
-  imagenet_val_real_sample_limit: 32
+  imagenet_fake_sample_limit: 10000
+  imagenet_real_sample_limit: 10000
   synthscars_val_ratio: 0.1
-  synthscars_train_sample_limit: 128
-  synthscars_val_sample_limit: 32
 
 data:
   imagenet_roots:
@@ -33,14 +29,14 @@ data:
   course_root: data/2026-课设数据集
 
 distill:
-  enabled: false
-  mode: offline_cache
+  enabled: true
+  mode: ema_online
   cache_path: ""
   stage_b_only: true
   ema_decay: 0.999
-  temperature: 4.0
-  total_weight: 0.5
+  temperature: 3.0
+  total_weight: 0.3
   cls_weight: 1.0
-  exp_weight: 0.5
+  exp_weight: 0.3
   exp_mode: cosine
   strict: false
