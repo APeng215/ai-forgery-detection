@@ -444,6 +444,95 @@ python distill/compare_checkpoints.py --baseline outputs/best.pt --candidate out
 python distill/compare_checkpoints.py --baseline outputs/best.pt --candidate outputs_ema/best.pt --keys Acc AP BLEU ROUGE-L IoU PixF1
 ```
 
+---
+
+## 方案三：线上大模型教师 + 离线蒸馏
+
+如果你希望把线上多模态大模型作为教师，再蒸馏回本地模型，可按下面流程执行。
+
+### 1) 采集线上教师输出（JSONL）
+
+先设置 API Key：
+
+```powershell
+$env:OPENAI_API_KEY="<your_api_key>"
+```
+
+然后运行采集脚本（OpenAI-compatible 接口）：
+
+```powershell
+python -m distill.collect_llm_teacher --config configs/multitask_ema_distill.yaml --api-base https://api.openai.com/v1 --model gpt-4.1-mini --output distill/llm_teacher_outputs.jsonl --limit 500 --sleep 0.2 --resume
+```
+
+说明：
+
+- `--api-base` 支持任意 OpenAI-compatible 服务地址。
+- `--resume` 可断点续采。
+- `--limit` 可先小规模试跑。
+- 默认启用重试与指数退避：`--max-retries 3 --retry-initial-delay 1 --retry-backoff 2 --retry-max-delay 10`。
+
+### 2) 把教师 JSONL 转成蒸馏缓存
+
+```powershell
+python -m distill.build_cache_from_llm --input distill/llm_teacher_outputs.jsonl --output distill/teacher_cache_from_llm.pt --config configs/multitask_ema_distill.yaml
+```
+
+脚本会生成 `samples` 字典，键是 `image_path`，值包含：
+
+- `logits`（分类软目标）
+- `explanation_features`（解释特征目标）
+
+### 3) 启用 offline_cache 蒸馏训练
+
+在配置中设置：
+
+```yaml
+distill:
+   enabled: true
+   mode: offline_cache
+   cache_path: distill/teacher_cache_from_llm.pt
+   stage_b_only: true
+   temperature: 3.0
+   total_weight: 0.3
+   cls_weight: 1.0
+   exp_weight: 0.3
+   exp_mode: cosine
+   strict: false
+```
+
+然后运行训练：
+
+```powershell
+python train_multitask.py --config configs/multitask.yaml --output outputs_llm_distill
+```
+
+### 一键流水线（采集 + 转缓存 + 训练 + 可选对比）
+
+你也可以直接运行一条流水线脚本：
+
+```powershell
+python -m distill.run_llm_distill_pipeline --api-base https://api.openai.com/v1 --model gpt-4.1-mini --config configs/multitask_offline_llm_distill.yaml --limit 500 --sleep 0.2 --resume --allow-cpu --baseline outputs_smoke_baseline_fast/best.pt
+```
+
+如果你使用 Qwen（OpenAI-compatible 接口），可直接参考：
+
+```powershell
+$env:OPENAI_API_KEY="<your_dashscope_key>"
+python -m distill.run_llm_distill_pipeline --api-base https://dashscope.aliyuncs.com/compatible-mode/v1 --model qwen2.5-vl-72b-instruct --config configs/multitask_offline_llm_distill.yaml --limit 500 --sleep 0.2 --max-retries 5 --retry-initial-delay 1 --retry-backoff 2 --retry-max-delay 20 --resume --allow-cpu
+```
+
+注意：
+
+- 请选择支持图像输入的 Qwen-VL 模型。
+- 若返回 401/403，优先检查 key、模型权限与 endpoint 是否匹配。
+
+说明：
+
+- 若已采集过教师数据，可加 `--skip-collect`。
+- 若只想生成缓存不训练，可加 `--skip-train`。
+- 默认教师缓存路径是 `distill/teacher_cache_from_llm.pt`，与 `configs/multitask_offline_llm_distill.yaml` 对齐。
+- 可通过 `--max-retries/--retry-initial-delay/--retry-backoff/--retry-max-delay` 调整失败重试策略。
+
 ### data
 
 - `imagenet_roots`
