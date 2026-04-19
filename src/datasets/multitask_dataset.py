@@ -69,7 +69,7 @@ class ImageNetClassificationDataset(Dataset):
             validation_progress = tqdm(sorted(files), desc=f"validate {split} {class_name}", leave=False)
             valid_files = [p for p in validation_progress if is_valid_image_file(p)]
             print(f"  Kept {len(valid_files)} valid {class_name} files for split={split} before sampling.")
-            if split == "train" and sample_limit_per_class is not None and class_name in sample_limit_per_class:
+            if sample_limit_per_class is not None and class_name in sample_limit_per_class:
                 rng.shuffle(valid_files)
                 valid_files = valid_files[: sample_limit_per_class[class_name]]
                 print(f"  Sampled {len(valid_files)} {class_name} files for split={split} using seed={seed}.")
