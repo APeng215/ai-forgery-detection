@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import argparse
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from typing import Dict, List
 
@@ -11,7 +11,6 @@ from tqdm.auto import tqdm
 
 from src.datasets.multitask_dataset import ImageNetClassificationDataset, SynthScarsDataset, split_synthscars_indices
 from src.datasets.wrappers import DatasetWithSource
-from distill.interface import DistillProvider, compute_online_distill_loss, init_ema_teacher, update_ema_teacher
 from src.models.multitask_model import MultiTaskForgeryModel
 from src.training.losses import TextFeatureEncoder, build_multitask_losses
 from src.training.metrics import MetricTracker
@@ -27,7 +26,6 @@ def collate_fn(batch: List[Dict]) -> Dict:
     has_loc = torch.tensor([item["has_loc"] for item in batch], dtype=torch.bool)
     has_exp = torch.tensor([item["has_exp"] for item in batch], dtype=torch.bool)
     sources = [item.get("source", "unknown") for item in batch]
-    image_paths = [item.get("image_path", "") for item in batch]
     return {
         "image": images,
         "cls_label": cls_labels,
@@ -37,7 +35,6 @@ def collate_fn(batch: List[Dict]) -> Dict:
         "has_loc": has_loc,
         "has_exp": has_exp,
         "source": sources,
-        "image_path": image_paths,
     }
 
 
@@ -58,7 +55,7 @@ def get_training_device(allow_cpu: bool = False) -> torch.device:
     return device
 
 
-def compute_batch_loss(batch: Dict, outputs: Dict, losses, text_encoder, device: torch.device, cfg: Dict, distill_provider: DistillProvider | None = None, stage_label: str = "", distill_cfg: Dict | None = None, teacher_outputs: Dict[str, torch.Tensor] | None = None) -> tuple[torch.Tensor, Dict[str, float]]:
+def compute_batch_loss(batch: Dict, outputs: Dict, losses, text_encoder, device: torch.device, cfg: Dict) -> tuple[torch.Tensor, Dict[str, float]]:
     total_loss = torch.tensor(0.0, device=device)
     scalars: Dict[str, float] = {}
 
@@ -83,25 +80,6 @@ def compute_batch_loss(batch: Dict, outputs: Dict, losses, text_encoder, device:
         exp_loss = losses.exp_loss(outputs["explanation_features"][exp_mask], target_features)
         total_loss = total_loss + cfg["train"]["exp_weight"] * exp_loss
         scalars["exp_loss"] = float(exp_loss.item())
-
-    if distill_provider is not None:
-        distill_loss, distill_scalars = distill_provider.compute(outputs=outputs, batch=batch, stage_label=stage_label)
-        total_loss = total_loss + distill_loss
-        scalars.update(distill_scalars)
-
-    if distill_cfg is not None and bool(distill_cfg.get("enabled", False)):
-        mode = distill_cfg.get("mode", "offline_cache")
-        stage_b_only = bool(distill_cfg.get("stage_b_only", True))
-        if mode == "ema_online" and (not stage_b_only or stage_label == "B"):
-            online_distill_loss, online_scalars = compute_online_distill_loss(
-                outputs=outputs,
-                teacher_outputs=teacher_outputs,
-                batch=batch,
-                device=device,
-                config=distill_cfg,
-            )
-            total_loss = total_loss + online_distill_loss
-            scalars.update(online_scalars)
 
     return total_loss, scalars
 
@@ -147,57 +125,24 @@ def evaluate(model, dataloader, losses, text_encoder, candidate_texts, candidate
     return metrics
 
 
-def run_epoch(model, dataloader, optimizer, scaler, losses, text_encoder, device, cfg, stage_label: str, epoch_index: int, total_epochs: int, distill_provider: DistillProvider | None = None, teacher_model=None, distill_cfg: Dict | None = None):
+def run_epoch(model, dataloader, optimizer, scaler, losses, text_encoder, device, cfg, stage_label: str, epoch_index: int, total_epochs: int):
     model.train()
     loss_history = []
     source_counter = Counter()
-    distill_scalar_sum: Dict[str, float] = defaultdict(float)
-    distill_scalar_count: Dict[str, int] = defaultdict(int)
     progress = tqdm(dataloader, desc=f"{stage_label} train {epoch_index}/{total_epochs}", leave=True)
     for batch in progress:
         source_counter.update(batch["source"])
         batch = {k: (v.to(device) if isinstance(v, torch.Tensor) else v) for k, v in batch.items()}
         optimizer.zero_grad(set_to_none=True)
-        teacher_outputs = None
-        if teacher_model is not None and distill_cfg is not None and bool(distill_cfg.get("enabled", False)):
-            mode = distill_cfg.get("mode", "offline_cache")
-            stage_b_only = bool(distill_cfg.get("stage_b_only", True))
-            if mode == "ema_online" and (not stage_b_only or stage_label == "B"):
-                with torch.no_grad():
-                    teacher_outputs = teacher_model(batch["image"])
         with torch.autocast(device_type=device.type, enabled=cfg["train"]["mixed_precision"] and device.type == "cuda"):
             outputs = model(batch["image"])
-            loss, scalars = compute_batch_loss(
-                batch,
-                outputs,
-                losses,
-                text_encoder,
-                device,
-                cfg,
-                distill_provider=distill_provider,
-                stage_label=stage_label,
-                distill_cfg=distill_cfg,
-                teacher_outputs=teacher_outputs,
-            )
+            loss, scalars = compute_batch_loss(batch, outputs, losses, text_encoder, device, cfg)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
-        if teacher_model is not None and distill_cfg is not None and bool(distill_cfg.get("enabled", False)):
-            mode = distill_cfg.get("mode", "offline_cache")
-            stage_b_only = bool(distill_cfg.get("stage_b_only", True))
-            if mode == "ema_online" and (not stage_b_only or stage_label == "B"):
-                update_ema_teacher(teacher_model, model, decay=float(distill_cfg.get("ema_decay", 0.999)))
-        for key, value in scalars.items():
-            if key.startswith("distill"):
-                distill_scalar_sum[key] += float(value)
-                distill_scalar_count[key] += 1
         loss_history.append(float(loss.item()))
         progress.set_postfix(loss=f"{loss.item():.4f}", **{k: f"{v:.4f}" for k, v in scalars.items()})
-    distill_epoch_stats = {
-        key: distill_scalar_sum[key] / max(distill_scalar_count[key], 1)
-        for key in distill_scalar_sum
-    }
-    return sum(loss_history) / max(len(loss_history), 1), dict(source_counter), distill_epoch_stats
+    return sum(loss_history) / max(len(loss_history), 1), dict(source_counter)
 
 
 def main() -> None:
@@ -225,15 +170,6 @@ def main() -> None:
         "ai": cfg["train"]["imagenet_fake_sample_limit"],
         "nature": cfg["train"]["imagenet_real_sample_limit"],
     }
-    val_sample_limits = None
-    val_fake_limit = cfg["train"].get("imagenet_val_fake_sample_limit")
-    val_real_limit = cfg["train"].get("imagenet_val_real_sample_limit")
-    if val_fake_limit is not None or val_real_limit is not None:
-        val_sample_limits = {}
-        if val_fake_limit is not None:
-            val_sample_limits["ai"] = int(val_fake_limit)
-        if val_real_limit is not None:
-            val_sample_limits["nature"] = int(val_real_limit)
 
     print("Building stage A classification datasets...")
     stage_a_train = DatasetWithSource(
@@ -251,7 +187,7 @@ def main() -> None:
             imagenet_roots,
             split="val",
             image_size=image_size,
-            sample_limit_per_class=val_sample_limits,
+            sample_limit_per_class=None,
             seed=cfg["train"]["seed"],
         ),
         "imagenet",
@@ -261,12 +197,6 @@ def main() -> None:
     print("Loading SynthScars datasets...")
     synth_full = SynthScarsDataset(synth_root, split="train", image_size=image_size)
     train_indices, val_indices = split_synthscars_indices(len(synth_full), cfg["train"]["synthscars_val_ratio"], cfg["train"]["seed"])
-    synth_train_sample_limit = cfg["train"].get("synthscars_train_sample_limit")
-    if synth_train_sample_limit is not None:
-        train_indices = train_indices[: int(synth_train_sample_limit)]
-    synth_val_sample_limit = cfg["train"].get("synthscars_val_sample_limit")
-    if synth_val_sample_limit is not None:
-        val_indices = val_indices[: int(synth_val_sample_limit)]
     synth_train = DatasetWithSource(SynthScarsDataset(synth_root, split="train", image_size=image_size, indices=train_indices), "synthscars")
     synth_val = DatasetWithSource(SynthScarsDataset(synth_root, split="train", image_size=image_size, indices=val_indices), "synthscars")
     print(f"Loaded SynthScars datasets: full={len(synth_full)} train={len(synth_train)} val={len(synth_val)}")
@@ -287,23 +217,6 @@ def main() -> None:
     scaler = torch.amp.GradScaler(device="cuda", enabled=cfg["train"]["mixed_precision"] and device.type == "cuda")
     losses = build_multitask_losses()
     text_encoder = TextFeatureEncoder(feature_dim=cfg["model"]["explanation_feature_dim"]).to(device)
-    distill_cfg = cfg.get("distill", {})
-    distill_mode = distill_cfg.get("mode", "offline_cache")
-    distill_provider = None
-    teacher_model = None
-    if bool(distill_cfg.get("enabled", False)):
-        if distill_mode == "offline_cache":
-            distill_provider = DistillProvider(distill_cfg, device)
-            print("Distillation enabled: true (offline_cache)")
-            if distill_provider.cache is not None:
-                print(f"Teacher cache loaded: {len(distill_provider.cache)} entries")
-        elif distill_mode == "ema_online":
-            teacher_model = init_ema_teacher(model, device)
-            print("Distillation enabled: true (ema_online)")
-        else:
-            raise ValueError(f"Unsupported distill mode: {distill_mode}")
-    else:
-        print("Distillation enabled: false")
     print("Building explanation candidate bank...")
     candidate_texts, candidate_features = build_candidate_bank(synth_train.dataset, text_encoder, device)
     print(f"Built explanation candidate bank with {len(candidate_texts)} texts.")
@@ -312,22 +225,7 @@ def main() -> None:
 
     print("Starting stage A training...")
     for epoch in range(cfg["train"]["epochs_stage_a"]):
-        train_loss, sources, distill_epoch_stats = run_epoch(
-            model,
-            stage_a_train_loader,
-            optimizer,
-            scaler,
-            losses,
-            text_encoder,
-            device,
-            cfg,
-            stage_label="A",
-            epoch_index=epoch + 1,
-            total_epochs=cfg["train"]["epochs_stage_a"],
-            distill_provider=distill_provider,
-            teacher_model=teacher_model,
-            distill_cfg=distill_cfg,
-        )
+        train_loss, sources = run_epoch(model, stage_a_train_loader, optimizer, scaler, losses, text_encoder, device, cfg, stage_label="A", epoch_index=epoch + 1, total_epochs=cfg["train"]["epochs_stage_a"])
         metrics = evaluate(model, stage_a_val_loader, losses, text_encoder, candidate_texts, candidate_features, device, cfg, stage_label="A", epoch_label=f"{epoch + 1}/{cfg['train']['epochs_stage_a']}")
         checkpoint = {"epoch": epoch + 1, "stage": "A", "model_state": model.state_dict(), "config": cfg, "metrics": metrics}
         torch.save(checkpoint, output_dir / "latest.pt")
@@ -335,29 +233,11 @@ def main() -> None:
         if score > best_score:
             best_score = score
             torch.save(checkpoint, output_dir / "best.pt")
-        summary = {"stage": "A", "epoch": epoch + 1, "train_loss": train_loss, "metrics": metrics, "sources": sources}
-        if distill_epoch_stats:
-            summary["distill"] = distill_epoch_stats
-        print(summary)
+        print({"stage": "A", "epoch": epoch + 1, "train_loss": train_loss, "metrics": metrics, "sources": sources})
 
     print("Starting stage B joint training...")
     for epoch in range(cfg["train"]["epochs_stage_b"]):
-        train_loss, sources, distill_epoch_stats = run_epoch(
-            model,
-            joint_train_loader,
-            optimizer,
-            scaler,
-            losses,
-            text_encoder,
-            device,
-            cfg,
-            stage_label="B",
-            epoch_index=epoch + 1,
-            total_epochs=cfg["train"]["epochs_stage_b"],
-            distill_provider=distill_provider,
-            teacher_model=teacher_model,
-            distill_cfg=distill_cfg,
-        )
+        train_loss, sources = run_epoch(model, joint_train_loader, optimizer, scaler, losses, text_encoder, device, cfg, stage_label="B", epoch_index=epoch + 1, total_epochs=cfg["train"]["epochs_stage_b"])
         metrics = evaluate(model, joint_val_loader, losses, text_encoder, candidate_texts, candidate_features, device, cfg, stage_label="B", epoch_label=f"{epoch + 1}/{cfg['train']['epochs_stage_b']}")
         checkpoint = {"epoch": epoch + 1, "stage": "B", "model_state": model.state_dict(), "config": cfg, "metrics": metrics}
         torch.save(checkpoint, output_dir / "latest.pt")
@@ -365,10 +245,7 @@ def main() -> None:
         if score > best_score:
             best_score = score
             torch.save(checkpoint, output_dir / "best.pt")
-        summary = {"stage": "B", "epoch": epoch + 1, "train_loss": train_loss, "metrics": metrics, "sources": sources}
-        if distill_epoch_stats:
-            summary["distill"] = distill_epoch_stats
-        print(summary)
+        print({"stage": "B", "epoch": epoch + 1, "train_loss": train_loss, "metrics": metrics, "sources": sources})
 
 
 if __name__ == "__main__":
