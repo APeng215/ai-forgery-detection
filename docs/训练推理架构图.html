@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 伪造图像检测：训练、推理与大模型增强架构图</title>
+  <style>
+    :root {
+      --bg: #f3f5fb;
+      --panel: rgba(255, 255, 255, 0.86);
+      --panel-strong: #ffffff;
+      --line: #d8dfeb;
+      --text: #202532;
+      --muted: #5c6578;
+      --shadow: 0 18px 45px rgba(50, 64, 98, 0.12);
+      --shadow-soft: 0 10px 24px rgba(50, 64, 98, 0.08);
+      --blue: #dbeafe;
+      --blue-strong: #4f7cff;
+      --green: #dcfce7;
+      --green-strong: #2e9f6b;
+      --yellow: #fef3c7;
+      --yellow-strong: #c89014;
+      --purple: #eee7ff;
+      --purple-strong: #805ad5;
+      --orange: #ffe1cb;
+      --orange-strong: #d97706;
+      --teal: #d8f2f3;
+      --teal-strong: #0f8b8d;
+      --pink: #ffe0eb;
+      --pink-strong: #d14d8b;
+      --gray: #eef2f7;
+      --gray-strong: #5b6472;
+      --danger: #ef4444;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --chip-train: linear-gradient(135deg, #5b7bb8 0%, #7b94c7 100%);
+      --chip-infer: linear-gradient(135deg, #248b74 0%, #4caf92 100%);
+      --chip-llm: linear-gradient(135deg, #7c3aed 0%, #9c6bff 100%);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(91, 123, 184, 0.14) 0, transparent 28%),
+        radial-gradient(circle at top right, rgba(124, 58, 237, 0.12) 0, transparent 24%),
+        linear-gradient(180deg, #f7f9ff 0%, #eef3fb 100%);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+
+    .page {
+      width: min(1680px, calc(100vw - 32px));
+      margin: 24px auto 40px;
+    }
+
+    .hero {
+      padding: 24px 28px 18px;
+      border: 1px solid rgba(216, 223, 235, 0.8);
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow);
+      position: relative;
+      z-index: 2;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .title-wrap h1 {
+      margin: 0 0 10px;
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: 0.2px;
+    }
+
+    .title-wrap p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.75;
+      max-width: 880px;
+    }
+
+    .hero-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .hero-tag {
+      padding: 8px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(216, 223, 235, 0.9);
+      background: rgba(255, 255, 255, 0.92);
+      font-size: 13px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 10px;
+      z-index: 8;
+      padding: 12px 0 4px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.78) 72%, rgba(255,255,255,0) 100%);
+      backdrop-filter: blur(10px);
+    }
+
+    .tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .tab-btn {
+      border: 1px solid rgba(216, 223, 235, 0.95);
+      background: rgba(255, 255, 255, 0.88);
+      color: var(--muted);
+      border-radius: 14px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    }
+
+    .tab-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-soft);
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(135deg, #eef4ff 0%, #ffffff 100%);
+      color: var(--blue-strong);
+      border-color: rgba(79, 124, 255, 0.35);
+      box-shadow: 0 12px 22px rgba(79, 124, 255, 0.14);
+    }
+
+    .toolbar-right {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .toolbar-pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(216, 223, 235, 0.95);
+    }
+
+    .layout {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      gap: 24px;
+      align-items: start;
+      position: relative;
+    }
+
+    .term {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 2px;
+      border-bottom: 1px dashed rgba(79, 124, 255, 0.45);
+      color: #305fda;
+      cursor: help;
+      white-space: nowrap;
+      z-index: 30;
+    }
+
+    .term::after {
+      content: "?";
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(79, 124, 255, 0.12);
+      color: #305fda;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      flex: 0 0 auto;
+    }
+
+    .term-tip {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 12px);
+      transform: translateX(-50%) translateY(6px);
+      min-width: 220px;
+      max-width: 320px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(29, 36, 52, 0.98);
+      color: #f6f8ff;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.7;
+      box-shadow: 0 18px 36px rgba(20, 26, 40, 0.30);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+      z-index: 999;
+      white-space: normal;
+      text-align: left;
+    }
+
+    .term-tip::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: -7px;
+      width: 14px;
+      height: 14px;
+      background: rgba(29, 36, 52, 0.98);
+      transform: translateX(-50%) rotate(45deg);
+    }
+
+    .term:hover .term-tip,
+    .term:focus-within .term-tip,
+    .term.active .term-tip {
+      opacity: 1;
+      visibility: visible;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .term.tip-right .term-tip {
+      left: 0;
+      transform: translateX(0) translateY(6px);
+    }
+
+    .term.tip-right .term-tip::after {
+      left: 18px;
+      transform: translateX(0) rotate(45deg);
+    }
+
+    .term.tip-right:hover .term-tip,
+    .term.tip-right:focus-within .term-tip,
+    .term.tip-right.active .term-tip {
+      transform: translateX(0) translateY(0);
+    }
+
+    .views {
+      min-width: 0;
+    }
+
+    .detail-panel {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      display: grid;
+      gap: 16px;
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      padding-right: 6px;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(140, 155, 189, 0.8) transparent;
+    }
+
+    .detail-panel::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .detail-panel::-webkit-scrollbar-thumb {
+      background: rgba(140, 155, 189, 0.8);
+      border-radius: 999px;
+    }
+
+    .detail-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .view {
+      display: none;
+      border: 1px solid rgba(216, 223, 235, 0.85);
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow);
+      padding: 24px;
+      overflow: visible;
+    }
+
+    .view.active {
+      display: block;
+      animation: fadeUp 0.26s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .section-head h2 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .section-head p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 14px;
+      max-width: 860px;
+    }
+
+    .section-kpi {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .kpi {
+      min-width: 116px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid rgba(216, 223, 235, 0.88);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .kpi .label {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .kpi .value {
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .board {
+      border-radius: 24px;
+      border: 1px solid rgba(216, 223, 235, 0.9);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(249, 251, 255, 0.9) 100%);
+      padding: 18px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .board + .board,
+    .board + .grid,
+    .grid + .board {
+      margin-top: 16px;
+    }
+
+    .board-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .board-title h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .board-title span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .flow-grid {
+      display: grid;
+      grid-template-columns: 1.1fr auto 1.2fr auto 1fr auto 1.2fr auto 1.05fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .flow-col {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 38px;
+      font-size: 28px;
+      color: #92a1be;
+      font-weight: 900;
+    }
+
+    .col-title {
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      color: var(--muted);
+      background: rgba(245, 247, 252, 0.95);
+      border: 1px solid rgba(216, 223, 235, 0.9);
+      text-align: center;
+    }
+
+    .node,
+    .mini-card,
+    .compare-card,
+    .roadmap-card {
+      border: 1px solid rgba(216, 223, 235, 0.9);
+      border-radius: 20px;
+      box-shadow: var(--shadow-soft);
+      background: var(--panel-strong);
+    }
+
+    .node {
+      width: 100%;
+      text-align: left;
+      padding: 16px;
+      cursor: pointer;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+      position: relative;
+      overflow: visible;
+    }
+
+    .node::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.55), transparent 55%);
+      pointer-events: none;
+    }
+
+    .node:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 18px 30px rgba(63, 76, 111, 0.14);
+      z-index: 5;
+    }
+
+    .node.selected {
+      border-color: rgba(79, 124, 255, 0.42);
+      box-shadow: 0 22px 34px rgba(79, 124, 255, 0.16);
+      transform: translateY(-2px);
+    }
+
+    .node .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      background: rgba(255, 255, 255, 0.72);
+      margin-bottom: 12px;
+    }
+
+    .node h4 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .node p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.75;
+      color: var(--muted);
+    }
+
+    .node ul {
+      margin: 12px 0 0;
+      padding-left: 18px;
+      color: var(--text);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .blue { background: linear-gradient(180deg, #edf5ff 0%, var(--blue) 100%); }
+    .green { background: linear-gradient(180deg, #effcf3 0%, var(--green) 100%); }
+    .yellow { background: linear-gradient(180deg, #fff8df 0%, var(--yellow) 100%); }
+    .purple { background: linear-gradient(180deg, #f5f1ff 0%, var(--purple) 100%); }
+    .orange { background: linear-gradient(180deg, #fff0e3 0%, var(--orange) 100%); }
+    .teal { background: linear-gradient(180deg, #eefbfb 0%, var(--teal) 100%); }
+    .pink { background: linear-gradient(180deg, #fff1f6 0%, var(--pink) 100%); }
+    .gray { background: linear-gradient(180deg, #f7f9fc 0%, var(--gray) 100%); }
+
+    .mini-grid {
+      display: grid;
+      gap: 10px;
+    }
+
+    .mini-grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .mini-card {
+      padding: 14px;
+      background: rgba(255,255,255,0.88);
+    }
+
+    .mini-card h4 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .mini-card p,
+    .mini-card li {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .mini-card ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+
+    .strip {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      padding: 9px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid rgba(216, 223, 235, 0.9);
+      background: rgba(255,255,255,0.95);
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .compare-card,
+    .roadmap-card {
+      padding: 18px;
+      background: rgba(255,255,255,0.92);
+    }
+
+    .compare-card h4,
+    .roadmap-card h4 {
+      margin: 0 0 10px;
+      font-size: 18px;
+    }
+
+    .compare-card p,
+    .roadmap-card p,
+    .roadmap-card li {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 14px;
+    }
+
+    .compare-card ul,
+    .roadmap-card ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .stage-line {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .stage-box {
+      padding: 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(216, 223, 235, 0.9);
+      background: rgba(255,255,255,0.92);
+      box-shadow: var(--shadow-soft);
+      position: relative;
+    }
+
+    .stage-box::after {
+      content: "→";
+      position: absolute;
+      top: 50%;
+      right: -18px;
+      transform: translateY(-50%);
+      font-size: 24px;
+      color: #94a3b8;
+      font-weight: 800;
+    }
+
+    .stage-box:last-child::after { display: none; }
+
+    .stage-box h4 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
+    .stage-box p,
+    .stage-box li {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .stage-box ul {
+      margin: 8px 0 0;
+      padding-left: 18px;
+    }
+
+    .loss-grid {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .loss-stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .loss-formula {
+      padding: 18px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #f9f3ff 0%, #fff 100%);
+      border: 1px solid rgba(216, 223, 235, 0.9);
+      box-shadow: var(--shadow-soft);
+      font-family: "Consolas", "SFMono-Regular", monospace;
+      line-height: 1.9;
+      font-size: 14px;
+      color: #473f62;
+      white-space: pre-wrap;
+    }
+
+    .infer-grid {
+      display: grid;
+      grid-template-columns: 1.15fr auto 1fr auto 1.15fr;
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .infer-column {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .side-branch {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .strategy-card {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(216, 223, 235, 0.9);
+      background: rgba(255,255,255,0.94);
+      box-shadow: var(--shadow-soft);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .strategy-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto auto 0;
+      width: 100%;
+      height: 5px;
+      background: linear-gradient(90deg, var(--blue-strong), var(--purple-strong));
+    }
+
+    .strategy-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+
+    .strategy-title {
+      font-size: 19px;
+      font-weight: 800;
+      margin: 0;
+    }
+
+    .badge {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      color: white;
+      white-space: nowrap;
+    }
+
+    .badge.good { background: linear-gradient(135deg, #16a34a, #34d399); }
+    .badge.mid { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+    .badge.high { background: linear-gradient(135deg, #ef4444, #fb7185); }
+    .badge.llm { background: var(--chip-llm); }
+
+    .strategy-card p,
+    .strategy-card li {
+      margin: 0;
+      font-size: 14px;
+      line-height: 1.8;
+      color: var(--muted);
+    }
+
+    .strategy-card ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .strategy-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .meta-pill {
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: #f6f8fc;
+      color: var(--muted);
+      border: 1px solid rgba(216, 223, 235, 0.9);
+    }
+
+    .detail-card,
+    .legend-card {
+      border-radius: 24px;
+      border: 1px solid rgba(216, 223, 235, 0.88);
+      background: rgba(255,255,255,0.84);
+      backdrop-filter: blur(14px);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+
+    .detail-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 800;
+      color: white;
+      background: linear-gradient(135deg, #4f7cff, #7c3aed);
+      margin-bottom: 12px;
+    }
+
+    .detail-card h3,
+    .legend-card h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+    }
+
+    .detail-card p,
+    .detail-card li,
+    .legend-card li,
+    .legend-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+    .detail-card ul,
+    .legend-card ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .detail-files {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .file-tag {
+      padding: 7px 10px;
+      border-radius: 12px;
+      background: #f5f7fc;
+      color: #4d5566;
+      font-size: 12px;
+      border: 1px solid rgba(216, 223, 235, 0.85);
+      font-family: "Consolas", "SFMono-Regular", monospace;
+    }
+
+    .legend-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .legend-item {
+      display: grid;
+      grid-template-columns: 14px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      margin-top: 4px;
+    }
+
+    .footer-note {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px dashed rgba(216, 223, 235, 0.9);
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    @media (max-width: 1380px) {
+      .layout { grid-template-columns: 1fr; }
+      .detail-panel { position: static; }
+      .flow-grid { grid-template-columns: 1fr; }
+      .flow-arrow { min-height: 24px; transform: rotate(90deg); }
+      .infer-grid { grid-template-columns: 1fr; }
+      .stage-line { grid-template-columns: 1fr; }
+      .stage-box::after { display: none; }
+      .grid.two, .grid.three, .strategy-grid, .side-branch, .loss-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="hero-top">
+        <div class="title-wrap">
+          <h1>AI 伪造图像检测：训练、推理与线上大模型增强架构图</h1>
+          <p>
+            这张页面不是单纯“画图”，而是把当前项目的真实实现、训练流程、推理链路、瓶颈位置，
+            以及如何引入线上大模型提高效果，统一组织成一个可以点击查看细节的中文版交互页面。
+          </p>
+        </div>
+        <div class="hero-tags">
+          <div class="hero-tag">共享骨干：ResNet50</div>
+          <div class="hero-tag">三任务：分类 / 解释 / 定位</div>
+          <div class="hero-tag">训练策略：<span class="term tip-right" tabindex="0">Stage A<span class="term-tip">先只训练真假分类，让共享骨干先学到稳定的真假判别能力，再进入联合训练。</span></span> + <span class="term tip-right" tabindex="0">Stage B<span class="term-tip">把分类数据与 SynthScars 多任务数据拼接起来做联合训练，同时优化分类、解释和定位。</span></span></div>
+          <div class="hero-tag">增强方向：在线多模态大模型</div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="tabs">
+          <button class="tab-btn active" data-view="overview">总体架构</button>
+          <button class="tab-btn" data-view="train">训练流程</button>
+          <button class="tab-btn" data-view="infer">推理流程</button>
+          <button class="tab-btn" data-view="llm">线上大模型增强</button>
+          <button class="tab-btn" data-view="roadmap">实施建议</button>
+        </div>
+        <div class="toolbar-right">
+          <div class="toolbar-pill">点击任意模块可在右侧查看详情</div>
+          <div class="toolbar-pill">支持 CSS / JS 交互增强</div>
+        </div>
+      </div>
+    </header>
+
+    <div class="layout">
+      <main class="views">
+        <section class="view active" id="view-overview">
+          <div class="section-head">
+            <div>
+              <h2>总体架构总览</h2>
+              <p>
+                当前系统是统一多任务模型，不是三个独立模型。单张图像进入共享骨干后，同时产生真假分类、解释特征和伪造区域定位结果。
+                训练时通过 <span class="term" tabindex="0">partial labels<span class="term-tip">指同一个 batch 里，不同样本可拥有不同任务标签。代码里用 has_cls / has_loc / has_exp 表示样本能参与哪些任务。</span></span> 支持“不是每张图都有三类标注”的现实数据条件；推理时则复用同一套模型参数输出三项结果。
+              </p>
+            </div>
+            <div class="section-kpi">
+              <div class="kpi"><div class="label">骨干</div><div class="value">ResNet50</div></div>
+              <div class="kpi"><div class="label">任务头</div><div class="value">3 个</div></div>
+              <div class="kpi"><div class="label">训练阶段</div><div class="value">2 段</div></div>
+            </div>
+          </div>
+
+          <div class="board">
+            <div class="board-title">
+              <h3>从数据到输出的主链路</h3>
+              <span>尽量按“左到右、单方向”阅读，减少视觉交叉</span>
+            </div>
+            <div class="flow-grid">
+              <div class="flow-col">
+                <div class="col-title">1. 数据输入</div>
+                <button class="node blue" data-tone="蓝色模块" data-title="分类训练数据" data-summary="来自 ImageNet / GenImage 风格的真假分类数据，用于先把共享骨干训出稳定的真假判别能力。" data-points="当前训练 fake 数据已接入 adm + biggan||后续最需要补充 glide/vqdm1000、midjourney、wukong、sdv5 等未覆盖生成器||这一路样本通常只有 has_cls=True" data-files="train_multitask.py,src/datasets/multitask_dataset.py">
+                  <div class="tag">分类数据</div>
+                  <h4>ImageNet / GenImage</h4>
+                  <p>提供真假标签，支撑 <span class="term" tabindex="0">Stage A<span class="term-tip">第一阶段只看分类数据，用来先稳定真假分类能力。</span></span> 分类热身。</p>
+                </button>
+                <button class="node green" data-tone="绿色模块" data-title="多任务训练数据" data-summary="SynthScars 同时提供 fake 标签、文本说明和伪造区域标注，是当前解释与定位训练的主数据源。" data-points="通常 has_cls=True、has_loc=True、has_exp=True||用于 Stage B 联合训练||候选解释文本库也从这里构建" data-files="train_multitask.py,src/datasets/multitask_dataset.py,infer_multitask.py">
+                  <div class="tag">多任务数据</div>
+                  <h4>SynthScars</h4>
+                  <p>提供 caption + mask + fake label，负责解释与定位监督。</p>
+                </button>
+              </div>
+
+              <div class="flow-arrow">➜</div>
+
+              <div class="flow-col">
+                <div class="col-title">2. 数据组织</div>
+                <button class="node yellow" data-tone="黄色模块" data-title="DataLoader 与部分监督机制" data-summary="训练入口不会强求每个样本都有三种标注，而是通过 has_cls / has_loc / has_exp 标识当前样本能参与哪些 loss。" data-points="collate_fn 会把图片、标签、mask、caption 和任务可用标识一起打包||compute_batch_loss 只在对应标注存在时才计算那一路 loss||这就是当前统一多任务训练能成立的关键" data-files="train_multitask.py">
+                  <div class="tag">数据装配</div>
+                  <h4><span class="term" tabindex="0">partial labels<span class="term-tip">不是所有样本都拥有三任务完整标注，因此训练时按样本实际可用标注动态计算对应 loss。</span></span></h4>
+                  <p>统一 batch，但按任务可用性选择性计算损失。</p>
+                </button>
+                <button class="node teal" data-tone="青色模块" data-title="两阶段训练策略" data-summary="为了避免一开始就让三个任务互相干扰，先用分类数据热身，再做联合训练。" data-points="Stage A：只看分类数据，优先稳定真假判别||Stage B：把分类数据与 SynthScars 拼接联合训练||这种方式对当前数据形态更稳" data-files="train_multitask.py,README.md">
+                  <div class="tag">训练策略</div>
+                  <h4>Stage A → Stage B</h4>
+                  <p>先分类热身，再多任务联合训练。</p>
+                </button>
+              </div>
+
+              <div class="flow-arrow">➜</div>
+
+              <div class="flow-col">
+                <div class="col-title">3. 共享特征提取</div>
+                <button class="node purple" data-tone="紫色模块" data-title="共享骨干 ResNet50" data-summary="当前主模型先把图像编码成 low / mid / high 三层特征，其中最终三路任务头主要消费 high 特征。" data-points="backbone 输出 low / mid / high||当前分类头与解释头都基于全局池化后的 high feature||定位头用卷积解码 + 双线性插值恢复到输入大小" data-files="src/models/backbone.py,src/models/multitask_model.py">
+                  <div class="tag">共享骨干</div>
+                  <h4>ResNet50 backbone</h4>
+                  <p>统一视觉编码，作为三个任务头的公共基础。</p>
+                  <ul>
+                    <li>low 特征：较浅层纹理</li>
+                    <li>mid 特征：中层结构信息</li>
+                    <li>high 特征：高层语义与判别信息</li>
+                  </ul>
+                </button>
+              </div>
+
+              <div class="flow-arrow">➜</div>
+
+              <div class="flow-col">
+                <div class="col-title">4. 三个任务头</div>
+                <div class="mini-grid">
+                  <button class="node blue" data-tone="蓝色模块" data-title="分类头" data-summary="分类头由全局平均池化和全连接层组成，直接输出 real / fake logits。" data-points="结构很轻，推理成本低||对未见生成器的泛化能力更依赖骨干与训练数据覆盖||当前分类的主要瓶颈是生成器域偏移，不是头部太复杂" data-files="src/models/heads/classification_head.py,src/models/multitask_model.py">
+                    <div class="tag">任务头 1</div>
+                    <h4>真假分类头</h4>
+                    <p>GAP + FC，输出 real / fake logits。</p>
+                  </button>
+                  <button class="node green" data-tone="绿色模块" data-title="定位头" data-summary="定位头接收高层特征，用卷积解码器生成单通道 mask logits，再插值回输入分辨率。" data-points="训练损失是 BCEWithLogits + Dice||当前版本依然偏简单，没有用 FPN / skip connection||如果后续要明显提 PixF1，定位头结构仍有升级空间" data-files="src/models/heads/localization_head.py,src/models/multitask_model.py">
+                    <div class="tag">任务头 2</div>
+                    <h4>伪造区域定位头</h4>
+                    <p>卷积解码 + 上采样，输出 mask logits。</p>
+                  </button>
+                  <button class="node orange" data-tone="橙色模块" data-title="解释头" data-summary="解释头不是自回归文本生成器，而是把图像投影到 explanation feature，再到候选文本库里检索最接近的说明。" data-points="当前解释能力的上限受候选 caption 库质量限制||优点是实现简单、稳定、训练快||缺点是表达受限，难以覆盖复杂或组合型伪造描述" data-files="src/models/heads/explanation_head.py,src/models/multitask_model.py,infer_multitask.py">
+                    <div class="tag">任务头 3</div>
+                    <h4>解释特征头</h4>
+                    <p>先投影，再从<span class="term" tabindex="0">候选文本库<span class="term-tip">把训练集中已有 caption 编码成一个可检索的文本集合。解释头输出图像特征后，从中取最相近的文本作为 explanation。</span></span>检索解释文本。</p>
+                  </button>
+                </div>
+              </div>
+
+              <div class="flow-arrow">➜</div>
+
+              <div class="flow-col">
+                <div class="col-title">5. 输出 / 优化目标</div>
+                <button class="node pink" data-tone="粉色模块" data-title="训练损失与参数更新" data-summary="三路任务各自产生 loss，再按配置权重加权求和，最后由 AdamW + AMP 执行优化。" data-points="cls_loss：CrossEntropy||loc_loss：BCE + Dice||exp_loss：图像解释特征与文本特征做对比式对齐" data-files="src/training/losses.py,train_multitask.py">
+                  <div class="tag">训练侧</div>
+                  <h4>多任务加权优化</h4>
+                  <p>按任务可用性计算 loss，再统一更新模型参数。</p>
+                </button>
+                <button class="node gray" data-tone="灰色模块" data-title="推理输出" data-summary="推理阶段从同一模型直接得到真假结果、fake score、解释文本和预测 mask。" data-points="当前 fake 判定阈值为 softmax(logits)[1] >= 0.5||解释来自候选文本检索，不是自由生成||mask 输出是 sigmoid(mask_logits) 之后保存为图片" data-files="infer_multitask.py">
+                  <div class="tag">推理侧</div>
+                  <h4>三路结果同时输出</h4>
+                  <p>分类标签、fake 分数、解释文本、预测 mask。</p>
+                </button>
+              </div>
+            </div>
+
+            <div class="strip">
+              <div class="pill">部分监督：不是每张图都需要三种标注</div>
+              <div class="pill">共享骨干：减少三模型重复训练成本</div>
+              <div class="pill">解释方式：检索式而非生成式</div>
+              <div class="pill">主要短板：分类域偏移、解释表达受限、定位头偏简单</div>
+            </div>
+          </div>
+
+          <div class="grid two">
+            <div class="compare-card">
+              <h4>这套框架为什么当前能跑通</h4>
+              <p>它不是追求最复杂，而是优先保证“课程目标三条链路都通”。</p>
+              <ul>
+                <li>统一骨干让三项任务能共享视觉特征，避免三套模型各自为政。</li>
+                <li>partial labels 让分类集和多任务集可以自然拼接，不强迫数据满足完整三标注。</li>
+                <li>解释任务先用检索式 baseline，降低训练复杂度与显存压力。</li>
+                <li>Stage A + Stage B 训练策略，有利于先稳住真假分类再联合优化。</li>
+              </ul>
+            </div>
+            <div class="compare-card">
+              <h4>这套框架当前最值得继续优化的地方</h4>
+              <p>从当前实验结果看，优先级不是平均分配，而是有明显主次。</p>
+              <ul>
+                <li><strong>分类：</strong>先解决未见生成器覆盖不足，特别是 glide / midjourney / wukong。</li>
+                <li><strong>解释：</strong>检索式 explanation 上限受限，适合引入线上大模型做增强。</li>
+                <li><strong>定位：</strong>监督链路已修通，但定位头还比较浅，后续可升级结构。</li>
+                <li><strong>系统层：</strong>可做本地模型 + 在线大模型的级联推理与离线蒸馏。</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-train">
+          <div class="section-head">
+            <div>
+              <h2>训练流程拆解</h2>
+              <p>
+                当前训练入口的核心不是“单一大一统数据集”，而是把分类训练集与 SynthScars 多任务集通过统一 batch 结构组织起来。
+                所有 loss 都在 <strong>compute_batch_loss</strong> 里按可用标注动态计算，这是训练逻辑的真正核心。
+              </p>
+            </div>
+            <div class="section-kpi">
+              <div class="kpi"><div class="label">分类损失</div><div class="value">CE</div></div>
+              <div class="kpi"><div class="label">定位损失</div><div class="value">BCE + Dice</div></div>
+              <div class="kpi"><div class="label">解释损失</div><div class="value">对比式</div></div>
+            </div>
+          </div>
+
+          <div class="board">
+            <div class="board-title">
+              <h3>训练主流程</h3>
+              <span>从数据构建到 best.pt 的路径</span>
+            </div>
+            <div class="stage-line">
+              <div class="stage-box blue">
+                <h4>① 构建分类数据集</h4>
+                <p>从多个分类根目录收集 train / val 样本，过滤坏图后构造真假分类集。</p>
+                <ul>
+                  <li>支持多 root</li>
+                  <li>训练集固定 seed 随机截样</li>
+                </ul>
+              </div>
+              <div class="stage-box green">
+                <h4>② 构建 SynthScars</h4>
+                <p>读取图片、caption、polygon mask，并划分 train / val 索引。</p>
+                <ul>
+                  <li>提供分类 + 解释 + 定位监督</li>
+                  <li>同时用于候选文本库构建</li>
+                </ul>
+              </div>
+              <div class="stage-box yellow">
+                <h4>③ Stage A</h4>
+                <p>只训练分类数据，让共享骨干先学会真假判别。</p>
+                <ul>
+                  <li>重点看 Acc / AP</li>
+                  <li>先把分类能力热起来</li>
+                </ul>
+              </div>
+              <div class="stage-box purple">
+                <h4>④ Stage B</h4>
+                <p>ConcatDataset(ImageNet, SynthScars) 做联合训练。</p>
+                <ul>
+                  <li>三路 loss 同时参与</li>
+                  <li>用同一模型统一优化</li>
+                </ul>
+              </div>
+              <div class="stage-box pink">
+                <h4>⑤ 验证与保存</h4>
+                <p>每轮验证后保存 latest.pt，并根据综合分更新 best.pt。</p>
+                <ul>
+                  <li>Stage A：Acc + AP</li>
+                  <li>Stage B：分类 + 解释 + 定位综合</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="loss-grid">
+            <div class="board">
+              <div class="board-title">
+                <h3>损失函数与任务掩码</h3>
+                <span>真正决定训练逻辑的地方</span>
+              </div>
+              <div class="loss-stack">
+                <button class="node blue" data-tone="蓝色模块" data-title="分类损失 cls_loss" data-summary="只有 batch 中存在 has_cls=True 的样本时，才取出对应 logits 和 cls_label 计算 CrossEntropyLoss。" data-points="分类样本和 SynthScars 样本都可能参与 cls_loss||这使得 Stage B 中 fake 判别继续被强化||分类权重由配置项 cls_weight 控制" data-files="train_multitask.py,src/training/losses.py">
+                  <div class="tag">分类分支</div>
+                  <h4>cls_loss</h4>
+                  <p>对 real / fake logits 计算 CrossEntropy。</p>
+                </button>
+                <button class="node green" data-tone="绿色模块" data-title="定位损失 loc_loss" data-summary="只有 batch 中存在 has_loc=True 的样本时，才计算定位损失，当前形式是 BCEWithLogitsLoss 与 DiceLoss 之和。" data-points="mask 监督来自 SynthScars 或课程定位集||Dice 有助于缓解前景像素稀疏||定位指标恢复非零后，这一路已经可训练但仍有结构升级空间" data-files="train_multitask.py,src/training/losses.py">
+                  <div class="tag">定位分支</div>
+                  <h4>loc_loss</h4>
+                  <p>BCE + Dice，同步约束像素级定位。</p>
+                </button>
+                <button class="node orange" data-tone="橙色模块" data-title="解释损失 exp_loss" data-summary="解释头先输出 explanation feature，再与 TextFeatureEncoder 编码出来的文本目标特征做对比式对齐。" data-points="这不是语言模型生成 loss，而是图文特征对齐 loss||好处是实现轻、稳定||代价是解释自然度与覆盖面受候选文本限制" data-files="train_multitask.py,src/training/losses.py,src/models/heads/explanation_head.py">
+                  <div class="tag">解释分支</div>
+                  <h4>exp_loss</h4>
+                  <p>图像解释特征与文本特征做 contrastive alignment。</p>
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <div class="loss-formula">total_loss =
+  cls_weight * cls_loss
++ loc_weight * (bce_loss + dice_loss)
++ exp_weight * exp_loss
+
+仅当对应标注存在时，才启用那一路损失。
+
+这就是当前统一训练能兼容“部分标签数据”的关键。</div>
+
+              <div class="board" style="margin-top:16px;">
+                <div class="board-title">
+                  <h3>当前训练上的真实短板</h3>
+                  <span>不是所有问题都该优先改结构</span>
+                </div>
+                <div class="mini-grid">
+                  <div class="mini-card">
+                    <h4>分类</h4>
+                    <p>生成器域偏移依旧是主矛盾。头部不是主要瓶颈，训练 fake 覆盖面才是。</p>
+                  </div>
+                  <div class="mini-card">
+                    <h4>解释</h4>
+                    <p>检索式解释天花板明显，适合引入线上大模型做“增强生成”或“教师蒸馏”。</p>
+                  </div>
+                  <div class="mini-card">
+                    <h4>定位</h4>
+                    <p>当前解码器偏浅，没有用 skip connection / FPN，导致细节恢复能力有限。</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-infer">
+          <div class="section-head">
+            <div>
+              <h2>推理流程拆解</h2>
+              <p>
+                推理时当前系统仍然只走一次本地模型前向，然后把三路结果整理成最终输出。
+                其中 explanation 不是自由生成，而是“本地图像特征 → <span class="term" tabindex="0">候选文本库<span class="term-tip">当前 explanation 并不是直接让模型生成句子，而是从预先准备好的 caption 集合里检索最接近的一条。</span></span>检索”。这也是最适合后续接入线上大模型的切入点之一。
+              </p>
+            </div>
+            <div class="section-kpi">
+              <div class="kpi"><div class="label">分类判定</div><div class="value">阈值 0.5</div></div>
+              <div class="kpi"><div class="label">解释来源</div><div class="value">候选检索</div></div>
+              <div class="kpi"><div class="label">定位输出</div><div class="value">sigmoid(mask)</div></div>
+            </div>
+          </div>
+
+          <div class="board">
+            <div class="board-title">
+              <h3>本地推理主链路</h3>
+              <span>现在已经实现的部分</span>
+            </div>
+            <div class="infer-grid">
+              <div class="infer-column">
+                <div class="col-title">输入与预处理</div>
+                <button class="node blue" data-tone="蓝色模块" data-title="输入图像" data-summary="推理入口接受单张图像路径，读入后统一转成 RGB。" data-points="当前 infer_multitask.py 接收 image_path||适合单图演示与课程验收展示||后续可扩展为批量推理接口" data-files="infer_multitask.py">
+                  <div class="tag">输入</div>
+                  <h4>原始图像</h4>
+                  <p>单图输入，作为统一多任务推理的入口。</p>
+                </button>
+                <button class="node yellow" data-tone="黄色模块" data-title="图像预处理" data-summary="先按配置 resize 到统一尺寸，再 ToTensor，形成模型输入。" data-points="当前使用 image_size_seg 作为统一尺寸||处理简单直接||如果后续接更强模型，可考虑保留更高分辨率或多尺度策略" data-files="infer_multitask.py,configs/multitask.yaml">
+                  <div class="tag">预处理</div>
+                  <h4>Resize + ToTensor</h4>
+                  <p>生成统一尺寸张量，送入共享骨干。</p>
+                </button>
+              </div>
+
+              <div class="flow-arrow">➜</div>
+
+              <div class="infer-column">
+                <div class="col-title">模型与候选库</div>
+                <button class="node purple" data-tone="紫色模块" data-title="加载 checkpoint" data-summary="推理时加载 outputs/best.pt 中的 model_state，使用和训练一致的 MultiTaskForgeryModel。" data-points="推理模型不再加载预训练权重，而是完全从 checkpoint 恢复||这样能保证训练参数被准确复现||线上部署时通常需要进一步做模型导出与封装" data-files="infer_multitask.py,src/models/multitask_model.py">
+                  <div class="tag">模型恢复</div>
+                  <h4>加载 best.pt</h4>
+                  <p>恢复统一多任务模型权重。</p>
+                </button>
+                <button class="node gray" data-tone="灰色模块" data-title="统一前向推理" data-summary="一次 forward 同时输出 logits、mask_logits、explanation_features。" data-points="这是统一多任务架构的直接收益||分类、解释、定位共用同一张图的视觉特征||后续接线上模型时，也应保留这种“本地先跑一次”的思路" data-files="infer_multitask.py,src/models/multitask_model.py">
+                  <div class="tag">主前向</div>
+                  <h4>共享骨干 + 三任务头</h4>
+                  <p>一次 forward，拿到三路中间结果。</p>
+                </button>
+                <button class="node teal" data-tone="青色模块" data-title="解释候选文本库" data-summary="推理时还会读取 SynthScars 的 caption，编码成候选文本特征，用于 explanation retrieval。" data-points="本质是一个小型文本库，不是生成模型||候选文本来自训练集，泛化表达能力有限||这正是最适合用线上大模型改造的接口位置" data-files="infer_multitask.py,src/training/losses.py">
+                  <div class="tag">辅助资源</div>
+                  <h4>Candidate Bank</h4>
+                  <p>用 TextFeatureEncoder 把 caption 编码成可检索特征。</p>
+                </button>
+              </div>
+
+              <div class="flow-arrow">➜</div>
+
+              <div class="infer-column">
+                <div class="col-title">最终输出</div>
+                <button class="node blue" data-tone="蓝色模块" data-title="真假分类输出" data-summary="当前 fake 判定使用 softmax(logits)[1] >= 0.5，输出 label 与 fake_score。" data-points="这个阈值可以调，但不能解决严重未见生成器问题||更适合在独立开发集上做阈值校准||不建议直接在课程验收集上调阈值" data-files="infer_multitask.py">
+                  <div class="tag">输出 1</div>
+                  <h4>真假标签 + fake_score</h4>
+                  <p>分类最直接，但最受生成器域偏移影响。</p>
+                </button>
+                <button class="node orange" data-tone="橙色模块" data-title="解释文本输出" data-summary="当前 explanation 由 explanation_head.predict 在候选库中取最近 caption，输出固定文本。" data-points="优点是稳定，不会胡编||缺点是语言自然度、覆盖面和个性化都不足||最适合接入线上大模型进行增强生成或重写" data-files="infer_multitask.py,src/models/heads/explanation_head.py">
+                  <div class="tag">输出 2</div>
+                  <h4>检索式 explanation</h4>
+                  <p>来自候选文本检索，而不是自由生成。</p>
+                </button>
+                <button class="node green" data-tone="绿色模块" data-title="定位 mask 输出" data-summary="对 mask_logits 做 sigmoid 后得到预测热图，再保存为图片文件。" data-points="当前 mask 输出可以正常工作||如果未来接在线多模态模型，最好让它辅助生成文字解释，而不是直接代替像素级 mask||纯文本大模型不适合单独承担精细分割任务" data-files="infer_multitask.py">
+                  <div class="tag">输出 3</div>
+                  <h4>预测 mask</h4>
+                  <p>可视化伪造区域，用于定位与解释联动展示。</p>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="side-branch">
+            <div class="compare-card">
+              <h4>当前推理链路的优势</h4>
+              <ul>
+                <li>本地一次前向即可得到三路结果，速度快，结构清晰。</li>
+                <li>解释与定位可以直接绑定到同一张图像，便于展示。</li>
+                <li>不依赖线上服务即可独立跑通，适合课程答辩与离线演示。</li>
+              </ul>
+            </div>
+            <div class="compare-card">
+              <h4>当前推理链路的不足</h4>
+              <ul>
+                <li>解释文本过于受候选库限制，难以细腻描述复杂伪造痕迹。</li>
+                <li>分类对未见生成器泛化不足，仅靠阈值微调帮助有限。</li>
+                <li>定位结果已有起色，但缺少更强的结构化区域理解能力。</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-llm">
+          <div class="section-head">
+            <div>
+              <h2>如何引入线上大模型来提高效果</h2>
+              <p>
+                如果目标是“在不彻底推翻现有本地多任务框架的前提下，尽快提高系统效果”，最合理的策略不是让线上大模型直接替代所有部分，
+                而是把它接到最能产生增益的位置：<strong>解释增强、难例复判、离线蒸馏、区域级多模态增强</strong>。
+              </p>
+            </div>
+            <div class="section-kpi">
+              <div class="kpi"><div class="label">最推荐切入点</div><div class="value">解释增强</div></div>
+              <div class="kpi"><div class="label">第二优先级</div><div class="value">难例复判</div></div>
+              <div class="kpi"><div class="label">长期价值最高</div><div class="value">离线蒸馏</div></div>
+            </div>
+          </div>
+
+          <div class="strategy-grid">
+            <div class="strategy-card">
+              <div class="strategy-top">
+                <h3 class="strategy-title">方案 A：线上大模型只负责解释增强</h3>
+                <span class="badge good">推荐优先做</span>
+              </div>
+              <p>
+                本地模型继续负责真假分类和定位，线上多模态大模型只根据 <strong>原图 + 预测 mask + fake_score + 检索到的 top-k caption</strong>
+                生成更自然、更细致的中文解释文本。
+              </p>
+              <ul>
+                <li>对当前框架侵入最小，不会破坏已有训练链路。</li>
+                <li>最直接改善解释质量、可读性和答辩展示效果。</li>
+                <li>还能把 mask 区域与解释文字绑定起来，形成“哪里可疑、为什么可疑”的输出。</li>
+              </ul>
+              <div class="strategy-meta">
+                <span class="meta-pill">收益：高</span>
+                <span class="meta-pill">改造成本：低</span>
+                <span class="meta-pill">适合提升：BLEU / ROUGE-L / 展示效果</span>
+              </div>
+            </div>
+
+            <div class="strategy-card">
+              <div class="strategy-top">
+                <h3 class="strategy-title">方案 B：本地先判，线上大模型只复判难例</h3>
+                <span class="badge mid">推荐第二步</span>
+              </div>
+              <p>
+                先让本地模型跑一遍，只有当 <span class="term" tabindex="0">fake_score<span class="term-tip">模型对 fake 类别的概率分数。分数越靠近阈值，说明模型越不确定，这类样本最适合交给线上大模型做二次判断。</span></span> 接近阈值、或者 mask / explanation 与分类不一致时，才把样本送给线上多模态大模型做二级复判。
+              </p>
+              <ul>
+                <li>最适合解决当前“未见生成器”导致的分类失败问题。</li>
+                <li>只处理不确定样本，可以显著控制 API 成本与延迟。</li>
+                <li>可以把线上模型输出当成辅助判断，而不是强行替代本地判定。</li>
+              </ul>
+              <div class="strategy-meta">
+                <span class="meta-pill">收益：中高</span>
+                <span class="meta-pill">改造成本：中</span>
+                <span class="meta-pill">适合提升：Acc / fake recall / 未见生成器鲁棒性</span>
+              </div>
+            </div>
+
+            <div class="strategy-card">
+              <div class="strategy-top">
+                <h3 class="strategy-title">方案 C：把线上大模型当教师，离线蒸馏回本地模型</h3>
+                <span class="badge llm">长期最值</span>
+              </div>
+              <p>
+                用线上大模型给更多图像生成解释、软标签、难例判断，再把这些结果 <span class="term" tabindex="0">蒸馏<span class="term-tip">把更强模型或更复杂系统的知识，转移给当前较小或较快的本地模型。这里指用线上大模型产生的高质量输出，反过来训练本地模型。</span></span> 回本地统一模型。这样线上服务主要用于 <strong>离线增强训练数据</strong>，
+                线上推理成本却不会持续累积。
+              </p>
+              <ul>
+                <li>特别适合持续补充 glide、midjourney、wukong 等新生成器样本。</li>
+                <li>可把线上模型的语言能力蒸馏到本地解释模块，或训练新的生成式 explanation head。</li>
+                <li>对生产化最友好：效果来自大模型知识，但最终服务仍以本地模型为主。</li>
+              </ul>
+              <div class="strategy-meta">
+                <span class="meta-pill">收益：高</span>
+                <span class="meta-pill">改造成本：中高</span>
+                <span class="meta-pill">适合提升：全局泛化能力</span>
+              </div>
+            </div>
+
+            <div class="strategy-card">
+              <div class="strategy-top">
+                <h3 class="strategy-title">方案 D：结合在线 grounding / segmentation 能力</h3>
+                <span class="badge high">谨慎选择</span>
+              </div>
+              <p>
+                如果线上服务不仅是纯文本大模型，还带有 grounding / box / segmentation 能力，就可以让它为可疑区域提供更强的区域先验，再与本地 mask 做融合。
+              </p>
+              <ul>
+                <li>这条路更像“在线视觉基础模型增强”，不是普通文本大模型单独完成的。</li>
+                <li>对定位任务可能有帮助，但工程复杂度明显更高。</li>
+                <li>如果只是普通 LLM，没有区域 grounding 能力，不建议直接指望它提升像素级定位。</li>
+              </ul>
+              <div class="strategy-meta">
+                <span class="meta-pill">收益：中</span>
+                <span class="meta-pill">改造成本：高</span>
+                <span class="meta-pill">适合提升：IoU / PixF1（前提是服务能力足够）</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid two" style="margin-top:16px;">
+            <div class="compare-card">
+              <h4>我对你这套框架的直接建议</h4>
+              <ul>
+                <li><strong>第一步：</strong>不要动本地训练主干，先让线上多模态大模型只做 explanation 增强。</li>
+                <li><strong>第二步：</strong>把线上大模型接成“难例二判器”，只接管 fake_score 边缘样本。</li>
+                <li><strong>第三步：</strong>把线上模型的输出缓存起来，做离线蒸馏，逐步减少线上依赖。</li>
+                <li><strong>第四步：</strong>如果以后真要冲定位指标，再评估 grounding / segmentation 型服务。</li>
+              </ul>
+            </div>
+            <div class="compare-card">
+              <h4>为什么不建议一上来就“全部交给线上大模型”</h4>
+              <ul>
+                <li>成本高，且每张图都调用会带来明显延迟。</li>
+                <li>输出风格不稳定，课程验收或演示时可复现性较差。</li>
+                <li>纯文本大模型并不擅长像素级 mask，直接替代定位头往往不现实。</li>
+                <li>你现有本地模型已经把三条链路打通，更好的策略是“增强它”，不是“推翻它”。</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="board">
+            <div class="board-title">
+              <h3>如果接线上大模型，最推荐的输入与输出格式</h3>
+              <span>尽量结构化，方便程序接线</span>
+            </div>
+            <div class="grid two">
+              <div class="mini-card">
+                <h4>建议输入给线上大模型的信息</h4>
+                <ul>
+                  <li>原图（必要）</li>
+                  <li>本地模型输出的 fake_score 与当前 label</li>
+                  <li>预测 mask 或其可视化热图</li>
+                  <li>候选 explanation top-k 文本</li>
+                  <li>可疑区域裁剪图（按 mask 或 bbox 裁出）</li>
+                </ul>
+              </div>
+              <div class="mini-card">
+                <h4>建议要求线上大模型输出 JSON</h4>
+                <ul>
+                  <li>final_label：real / fake</li>
+                  <li>confidence：0~1</li>
+                  <li>explanation_zh：中文解释</li>
+                  <li>evidence_points：可疑点列表</li>
+                  <li>need_human_review：是否建议人工复核</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-roadmap">
+          <div class="section-head">
+            <div>
+              <h2>实施建议与落地顺序</h2>
+              <p>
+                如果你要继续把这个项目做得更像完整系统，而不仅是一个能跑通的 baseline，我建议按“低风险、高收益、可复用”的顺序推进。
+              </p>
+            </div>
+            <div class="section-kpi">
+              <div class="kpi"><div class="label">短期最稳</div><div class="value">解释增强</div></div>
+              <div class="kpi"><div class="label">中期关键</div><div class="value">难例复判</div></div>
+              <div class="kpi"><div class="label">长期沉淀</div><div class="value">蒸馏闭环</div></div>
+            </div>
+          </div>
+
+          <div class="grid three">
+            <div class="roadmap-card">
+              <h4>阶段 1：先提升展示与解释质量</h4>
+              <p>保持本地模型不变，在推理后串接线上多模态大模型，输出更自然的中文 explanation。</p>
+              <ul>
+                <li>最容易出效果</li>
+                <li>适合答辩展示</li>
+                <li>不会影响已有训练流程</li>
+              </ul>
+            </div>
+            <div class="roadmap-card">
+              <h4>阶段 2：只让线上大模型接管难例</h4>
+              <p>以 fake_score、top-k 解释一致性、mask 面积异常等规则触发二级复判。</p>
+              <ul>
+                <li>重点补未见生成器泛化</li>
+                <li>控制延迟与成本</li>
+                <li>可同时收集 teacher 数据</li>
+              </ul>
+            </div>
+            <div class="roadmap-card">
+              <h4>阶段 3：建立离线蒸馏闭环</h4>
+              <p>把线上模型的高质量解释与复判结果沉淀成训练数据，再反哺本地统一模型。</p>
+              <ul>
+                <li>长期最划算</li>
+                <li>减少线上依赖</li>
+                <li>更接近可部署系统</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="board">
+            <div class="board-title">
+              <h3>工程侧必须注意的事</h3>
+              <span>否则效果提升可能抵不过工程代价</span>
+            </div>
+            <div class="grid two">
+              <div class="mini-card">
+                <h4>调用策略</h4>
+                <ul>
+                  <li>不要所有图片都打线上接口，优先做条件触发。</li>
+                  <li>对同图重复请求要做缓存，避免浪费 API 配额。</li>
+                  <li>强制让大模型按 JSON 输出，减少解析不稳定。</li>
+                </ul>
+              </div>
+              <div class="mini-card">
+                <h4>系统稳定性</h4>
+                <ul>
+                  <li>线上接口超时或失败时，要能优雅回退到本地结果。</li>
+                  <li>不要让外部服务成为唯一真值来源。</li>
+                  <li>验收或展示时最好保留“纯本地模式”开关。</li>
+                </ul>
+              </div>
+              <div class="mini-card">
+                <h4>数据安全与成本</h4>
+                <ul>
+                  <li>确认图像是否允许发到外部服务。</li>
+                  <li>记录每次在线调用的收益，避免“加了大模型但性价比很低”。</li>
+                  <li>优先把线上能力沉淀为离线训练资产。</li>
+                </ul>
+              </div>
+              <div class="mini-card">
+                <h4>与当前项目的最佳结合点</h4>
+                <ul>
+                  <li>解释增强：接在 infer_multitask.py 后面。</li>
+                  <li>难例复判：接在 fake_score 判断后面。</li>
+                  <li>蒸馏闭环：接在新的离线数据标注脚本中。</li>
+                </ul>
+              </div>
+            </div>
+            <div class="footer-note">
+              总结一句：<strong>短期最值得做的是“本地模型负责判别与定位，线上大模型负责解释增强和难例复判”；长期最值得做的是“把线上大模型的知识蒸馏回本地统一模型”。</strong>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <aside class="detail-panel">
+        <div class="detail-card">
+          <div class="detail-chip" id="detailChip">点击模块查看详情</div>
+          <h3 id="detailTitle">当前页面说明</h3>
+          <p id="detailSummary">左侧的模块都可以点击。点击后，右侧会展示该模块的职责、它在当前项目中的真实含义、关键文件位置，以及为什么它重要。</p>
+          <ul id="detailPoints">
+            <li>这版页面已经全部改成中文。</li>
+            <li>结构上把总体架构、训练、推理、线上大模型增强拆成多个标签页。</li>
+            <li>这样比单张静态图更适合讲解，也更适合后续继续加内容。</li>
+          </ul>
+          <div class="detailFiles" id="detailFiles">
+            <span class="file-tag">docs/训练推理架构图.html</span>
+          </div>
+        </div>
+
+          <h3>阅读建议</h3>
+          <div class="legend-list">
+            <div class="legend-item"><span class="dot" style="background:#4f7cff"></span><div><strong>蓝色：</strong>分类相关模块或分类输出</div></div>
+            <div class="legend-item"><span class="dot" style="background:#2e9f6b"></span><div><strong>绿色：</strong>定位相关模块或区域监督</div></div>
+            <div class="legend-item"><span class="dot" style="background:#d97706"></span><div><strong>橙色：</strong>解释相关模块或 explanation 输出</div></div>
+            <div class="legend-item"><span class="dot" style="background:#805ad5"></span><div><strong>紫色：</strong>共享骨干、模型主体或 checkpoint</div></div>
+            <div class="legend-item"><span class="dot" style="background:#0f8b8d"></span><div><strong>青色：</strong>候选文本库、辅助编码器、训练策略等支撑模块</div></div>
+            <div class="legend-item"><span class="dot" style="background:#d14d8b"></span><div><strong>粉色：</strong>多任务优化与综合训练目标</div></div>
+          </div>
+          <div class="footer-note">
+            如果你后面还想继续增强，这个页面很适合再加：<strong>实验结果看板、数据集来源图、线上大模型调用时序图、课程答辩版简图</strong>。
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const tabs = document.querySelectorAll('.tab-btn');
+    const views = document.querySelectorAll('.view');
+    const nodes = document.querySelectorAll('.node');
+    const terms = document.querySelectorAll('.term');
+    const detailChip = document.getElementById('detailChip');
+    const detailTitle = document.getElementById('detailTitle');
+    const detailSummary = document.getElementById('detailSummary');
+    const detailPoints = document.getElementById('detailPoints');
+    const detailFiles = document.getElementById('detailFiles');
+
+    function setActiveView(viewName) {
+      tabs.forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewName));
+      views.forEach(view => view.classList.toggle('active', view.id === `view-${viewName}`));
+    }
+
+    tabs.forEach(btn => {
+      btn.addEventListener('click', () => setActiveView(btn.dataset.view));
+    });
+
+    function fillDetail(node) {
+      nodes.forEach(item => item.classList.remove('selected'));
+      node.classList.add('selected');
+
+      const title = node.dataset.title || '模块详情';
+      const summary = node.dataset.summary || '暂无说明';
+      const tone = node.dataset.tone || '模块详情';
+      const points = (node.dataset.points || '').split('||').filter(Boolean);
+      const files = (node.dataset.files || '').split(',').map(item => item.trim()).filter(Boolean);
+
+      detailChip.textContent = tone;
+      detailTitle.textContent = title;
+      detailSummary.textContent = summary;
+
+      detailPoints.innerHTML = '';
+      points.forEach(point => {
+        const li = document.createElement('li');
+        li.textContent = point;
+        detailPoints.appendChild(li);
+      });
+      if (points.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = '当前模块没有更多细节说明。';
+        detailPoints.appendChild(li);
+      }
+
+      detailFiles.innerHTML = '';
+      files.forEach(file => {
+        const span = document.createElement('span');
+        span.className = 'file-tag';
+        span.textContent = file;
+        detailFiles.appendChild(span);
+      });
+      if (files.length === 0) {
+        const span = document.createElement('span');
+        span.className = 'file-tag';
+        span.textContent = '未标注文件';
+        detailFiles.appendChild(span);
+      }
+    }
+
+    nodes.forEach(node => node.addEventListener('click', () => fillDetail(node)));
+
+    function closeAllTerms(except) {
+      terms.forEach(term => {
+        if (term !== except) term.classList.remove('active');
+      });
+    }
+
+    terms.forEach(term => {
+      term.addEventListener('click', event => {
+        event.stopPropagation();
+        const isActive = term.classList.contains('active');
+        closeAllTerms(term);
+        term.classList.toggle('active', !isActive);
+      });
+    });
+
+    document.addEventListener('click', () => closeAllTerms());
+
+    if (nodes.length > 0) fillDetail(nodes[0]);
+  </script>
+</body>
+</html>
