@@ -87,6 +87,7 @@ ai-forgery-detection/
 
 - `docs/项目过程记录.md`：过程记录、阶段结论、实验观察
 - `docs/训练推理架构图.html`：训练 / 推理 / 线上增强思路的可视化说明
+- `docs/蒸馏技术总结.md`：当前蒸馏方案的完整技术说明（offline cache + EMA online）
 
 ---
 
@@ -344,7 +345,149 @@ $env:DASHSCOPE_API_KEY="你的阿里云 Model Studio Key"
 - `exp_weight`
 - `imagenet_fake_sample_limit`
 - `imagenet_real_sample_limit`
+- `imagenet_val_fake_sample_limit`（可选，限制 val fake 数量，用于加速 smoke）
+- `imagenet_val_real_sample_limit`（可选，限制 val real 数量，用于加速 smoke）
 - `synthscars_val_ratio`
+- `synthscars_train_sample_limit`（可选，限制 SynthScars train 数量，用于加速 smoke）
+- `synthscars_val_sample_limit`（可选，限制 SynthScars val 数量，用于加速 smoke）
+
+### distill
+
+- `enabled`：是否开启蒸馏
+- `mode`：支持 `offline_cache`（离线教师缓存）和 `ema_online`（无需教师）
+- `cache_path`：教师输出缓存路径（`.pt`）
+- `stage_b_only`：是否仅在 Stage B 启用蒸馏
+- `ema_decay`：`ema_online` 模式的 EMA 更新系数
+- `temperature`：分类蒸馏温度
+- `total_weight`：蒸馏总权重
+- `cls_weight`：分类蒸馏子损失权重
+- `exp_weight`：解释特征蒸馏子损失权重
+- `exp_mode`：解释特征蒸馏模式，支持 `cosine` / `mse`
+- `strict`：开启后，缓存缺失样本将抛异常
+
+蒸馏默认关闭（`enabled: false`），不影响现有训练流程。
+
+---
+
+## 蒸馏功能（离线缓存）
+
+当前项目提供了一个独立 `distill/` 模块，用于在 Stage B 对学生模型做“分类 + 解释特征”蒸馏。
+
+### 1. 缓存格式
+
+你可以先用内置脚本从教师 checkpoint 构建缓存：
+
+```powershell
+python distill/build_cache.py --config configs/multitask.yaml --teacher-checkpoint outputs/best.pt --output distill/teacher_cache.pt
+```
+
+脚本默认按 Stage B 训练集构建缓存（ImageNet train 子集 + SynthScars train 子集）。
+
+`cache_path` 指向一个 `.pt` 文件，支持以下两种结构：
+
+```python
+# 结构 A
+{
+   "samples": {
+      "<image_path>": {
+         "logits": torch.Tensor([2]),
+         "explanation_features": torch.Tensor([D])
+      }
+   }
+}
+
+# 结构 B
+{
+   "<image_path>": {
+      "logits": torch.Tensor([2]),
+      "explanation_features": torch.Tensor([D])
+   }
+}
+```
+
+其中键 `<image_path>` 必须与训练 batch 中样本的 `image_path` 对齐。
+
+### 2. 开启蒸馏
+
+在配置中设置：
+
+```yaml
+distill:
+   enabled: true
+   mode: offline_cache
+   cache_path: path/to/teacher_cache.pt
+   stage_b_only: true
+   temperature: 4.0
+   total_weight: 0.5
+   cls_weight: 1.0
+   exp_weight: 0.5
+   exp_mode: cosine
+   strict: false
+```
+
+运行训练命令不变：
+
+```powershell
+python train_multitask.py --config configs/multitask.yaml --output outputs
+```
+
+### 3. 回退方式
+
+将 `distill.enabled` 设为 `false` 即可完全回退到原训练行为。
+
+---
+
+## 蒸馏功能（无教师：EMA Online）
+
+如果你没有现成教师 checkpoint，可以直接用 `ema_online`：训练中维护一个 EMA teacher，不需要提前构建缓存。
+
+```yaml
+distill:
+   enabled: true
+   mode: ema_online
+   stage_b_only: true
+   ema_decay: 0.999
+   temperature: 3.0
+   total_weight: 0.3
+   cls_weight: 1.0
+   exp_weight: 0.3
+   exp_mode: cosine
+   strict: false
+```
+
+命令保持不变：
+
+```powershell
+python train_multitask.py --config configs/multitask.yaml --output outputs_distill
+```
+
+如果你希望直接使用预设配置（无需手动改 yaml），可直接运行：
+
+```powershell
+# 无教师蒸馏 smoke
+python train_multitask.py --config configs/multitask_smoke_ema_distill.yaml --output outputs_smoke_ema
+
+# 无教师蒸馏正式训练
+python train_multitask.py --config configs/multitask_ema_distill.yaml --output outputs_ema
+```
+
+训练日志中会自动输出 epoch 级蒸馏统计（如 `distill_cls_loss`、`distill_exp_loss`、`distill_loss`）。
+
+---
+
+## baseline 与蒸馏结果对比
+
+可用下面脚本快速比较两个 checkpoint 中保存的指标：
+
+```powershell
+python distill/compare_checkpoints.py --baseline outputs/best.pt --candidate outputs_ema/best.pt
+```
+
+如果你只想比较部分指标，可追加 `--keys`：
+
+```powershell
+python distill/compare_checkpoints.py --baseline outputs/best.pt --candidate outputs_ema/best.pt --keys Acc AP BLEU ROUGE-L IoU PixF1
+```
 
 ---
 

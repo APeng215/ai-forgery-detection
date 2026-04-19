@@ -37,3 +37,16 @@ inference:
     api_key_env: DASHSCOPE_API_KEY
     timeout_sec: 20
     fallback_to_local: true
+
+distill:
+  enabled: false
+  mode: offline_cache
+  cache_path: ""
+  stage_b_only: true
+  ema_decay: 0.999
+  temperature: 4.0
+  total_weight: 0.5
+  cls_weight: 1.0
+  exp_weight: 0.5
+  exp_mode: cosine
+  strict: false
