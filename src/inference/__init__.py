@@ -1,1 +1,2 @@
-from .remote_explainer import enhance_explanation
+from .plan_b import evaluate_with_inference_policy, get_inference_mode, resolve_inference_result
+from .remote_explainer import enhance_explanation, rejudge_hard_case

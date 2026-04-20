@@ -13,6 +13,7 @@ from src.datasets.multitask_dataset import (
     SynthScarsDataset,
 )
 from src.datasets.wrappers import DatasetWithSource
+from src.inference import evaluate_with_inference_policy, get_inference_mode
 from src.models.multitask_model import MultiTaskForgeryModel
 from src.training.losses import TextFeatureEncoder, build_multitask_losses
 from src.training.utils import load_config
@@ -25,6 +26,9 @@ def evaluate_synthscars_test(cfg, model, losses, text_encoder, device):
     )
     dataloader = DataLoader(dataset, batch_size=cfg["train"]["batch_size"], shuffle=False, num_workers=cfg["train"]["num_workers"], collate_fn=collate_fn)
     candidate_texts, candidate_features = build_candidate_bank(dataset.dataset, text_encoder, device)
+    inference_mode = get_inference_mode(cfg)
+    if inference_mode == "plan_b":
+        return evaluate_with_inference_policy(model, dataloader, losses, text_encoder, candidate_texts, candidate_features, device, cfg, stage_label="eval", epoch_label="test")
     return evaluate(model, dataloader, losses, text_encoder, candidate_texts, candidate_features, device, cfg, stage_label="eval", epoch_label="test")
 
 
@@ -45,11 +49,16 @@ def evaluate_course(cfg, model, losses, text_encoder, device):
     exp_loader = DataLoader(exp_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=collate_fn)
     loc_loader = DataLoader(loc_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers, collate_fn=collate_fn)
 
-    cls_metrics = evaluate(model, cls_loader, losses, text_encoder, device=device, cfg=cfg, candidate_texts=candidate_texts, candidate_features=candidate_features, stage_label="course-cls", epoch_label="test")
-    exp_metrics = evaluate(model, exp_loader, losses, text_encoder, device=device, cfg=cfg, candidate_texts=candidate_texts, candidate_features=candidate_features, stage_label="course-exp", epoch_label="test")
+    inference_mode = get_inference_mode(cfg)
+    if inference_mode == "plan_b":
+        cls_metrics = evaluate_with_inference_policy(model, cls_loader, losses, text_encoder, candidate_texts, candidate_features, device, cfg, stage_label="course-cls", epoch_label="test")
+        exp_metrics = evaluate_with_inference_policy(model, exp_loader, losses, text_encoder, candidate_texts, candidate_features, device, cfg, stage_label="course-exp", epoch_label="test")
+    else:
+        cls_metrics = evaluate(model, cls_loader, losses, text_encoder, device=device, cfg=cfg, candidate_texts=candidate_texts, candidate_features=candidate_features, stage_label="course-cls", epoch_label="test")
+        exp_metrics = evaluate(model, exp_loader, losses, text_encoder, device=device, cfg=cfg, candidate_texts=candidate_texts, candidate_features=candidate_features, stage_label="course-exp", epoch_label="test")
     loc_metrics = evaluate(model, loc_loader, losses, text_encoder, device=device, cfg=cfg, candidate_texts=candidate_texts, candidate_features=candidate_features, stage_label="course-loc", epoch_label="test")
 
-    return {
+    result = {
         "classification": cls_metrics,
         "explanation": exp_metrics,
         "localization": loc_metrics,
@@ -62,6 +71,12 @@ def evaluate_course(cfg, model, losses, text_encoder, device):
         "PixR": loc_metrics.get("PixR", 0.0),
         "PixF1": loc_metrics.get("PixF1", 0.0),
     }
+    if inference_mode == "plan_b":
+        result["plan_b_policy"] = {
+            "classification": cls_metrics.get("policy", {}),
+            "explanation": exp_metrics.get("policy", {}),
+        }
+    return result
 
 
 def main() -> None:

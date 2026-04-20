@@ -8,7 +8,7 @@ import torch
 from torchvision import transforms
 
 from src.datasets.multitask_dataset import SynthScarsDataset
-from src.inference import enhance_explanation
+from src.inference import get_inference_mode, resolve_inference_result
 from src.models.multitask_model import MultiTaskForgeryModel
 from src.training.losses import TextFeatureEncoder
 from src.training.utils import load_config
@@ -54,7 +54,8 @@ def main() -> None:
     with torch.no_grad():
         outputs = model(image_tensor)
         cls_prob = torch.softmax(outputs["logits"], dim=1)[0, 1].item()
-        label = "fake" if cls_prob >= 0.5 else "real"
+        threshold = float((cfg.get("inference") or {}).get("classification_threshold", 0.5))
+        label = "fake" if cls_prob >= threshold else "real"
         explanation = model.explanation_head.predict(outputs["explanation_features"], candidate_texts, candidate_features)[0]
         mask = torch.sigmoid(outputs["mask_logits"])[0, 0].cpu()
 
@@ -67,26 +68,11 @@ def main() -> None:
         "fake_score": cls_prob,
         "explanation": explanation,
         "mask_path": str(output_mask_path),
+        "mask_area_ratio": float((mask >= 0.5).float().mean().item()),
     }
-    remote_result = enhance_explanation(args.image_path, output_mask_path, local_result, cfg)
-
-    final_result = {
-        "label": label,
-        "fake_score": cls_prob,
-        "explanation": remote_result["explanation"],
-        "mask_path": str(output_mask_path),
-        "explanation_source": remote_result["source"],
-    }
-    if remote_result.get("evidence_points"):
-        final_result["evidence_points"] = remote_result["evidence_points"]
-    if remote_result.get("confidence") is not None:
-        final_result["explanation_confidence"] = remote_result["confidence"]
-    if "need_human_review" in remote_result:
-        final_result["need_human_review"] = remote_result["need_human_review"]
-    if remote_result.get("source") == "remote":
-        final_result["local_explanation"] = explanation
-    if remote_result.get("fallback_reason"):
-        final_result["fallback_reason"] = remote_result["fallback_reason"]
+    final_result = resolve_inference_result(args.image_path, mask, local_result, cfg)
+    final_result["mask_path"] = str(output_mask_path)
+    final_result["inference_mode"] = get_inference_mode(cfg)
 
     print(final_result)
 

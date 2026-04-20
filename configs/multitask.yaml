@@ -29,6 +29,14 @@ data:
   course_root: data/2026-课设数据集
 
 inference:
+  mode: local
+  classification_threshold: 0.5
+  plan_b:
+    score_margin: 0.08
+    route_on_mask_disagreement: true
+    fake_mask_area_min: 0.01
+    real_mask_area_max: 0.10
+    remote_override_confidence_min: 0.65
   remote_explanation:
     enabled: false
     provider: aliyun_model_studio

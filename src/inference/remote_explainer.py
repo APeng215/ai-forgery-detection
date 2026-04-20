@@ -24,12 +24,19 @@ def _local_response(local_explanation: str, source: str, fallback_reason: str | 
     return payload
 
 
-def _encode_image_as_data_url(image_path: str | Path) -> str:
-    path = Path(image_path)
+def _ensure_image_bytes(image: str | Path | bytes) -> tuple[bytes, str]:
+    if isinstance(image, bytes):
+        return image, "image/png"
+    path = Path(image)
     mime_type, _ = mimetypes.guess_type(path.name)
     if not mime_type:
         mime_type = "image/png"
-    encoded = base64.b64encode(path.read_bytes()).decode("utf-8")
+    return path.read_bytes(), mime_type
+
+
+def _encode_image_as_data_url(image: str | Path | bytes) -> str:
+    data, mime_type = _ensure_image_bytes(image)
+    encoded = base64.b64encode(data).decode("utf-8")
     return f"data:{mime_type};base64,{encoded}"
 
 
@@ -50,6 +57,26 @@ def _build_prompt(local_result: Mapping[str, Any]) -> str:
         f"Local fake_score: {float(local_result['fake_score']):.4f}\n"
         f"Local explanation: {local_result['explanation']}\n"
         "The second image is the local suspicious-region mask, where brighter areas indicate more suspicious regions."
+    )
+
+
+def _build_rejudge_prompt(local_result: Mapping[str, Any], routing_reasons: list[str]) -> str:
+    reasons = ", ".join(routing_reasons) if routing_reasons else "none"
+    return (
+        "You are a second-stage reviewer for an image forgery detection system. "
+        "The local model has already produced a label, fake_score, explanation, and suspicious-region mask. "
+        "Your job is to independently re-judge hard cases using the original image and the local mask as evidence. "
+        "The local result is context, not ground truth. Be conservative when disagreeing. "
+        "Return JSON only with keys: remote_label, remote_fake_score, explanation, evidence_points, confidence, need_human_review, decision_rationale. "
+        "remote_label must be real or fake. remote_fake_score and confidence must be numbers from 0 to 1. "
+        "The explanation must use this exact two-part template: "
+        "'Upon examining the image. I have found: <one concise overall sentence>. To elaborate, I have found the following artifacts. <artifact name>:<artifact detail>. <artifact name>:<artifact detail>.' "
+        "Do not mention the mask explicitly inside the explanation.\n\n"
+        f"Local label: {local_result['label']}\n"
+        f"Local fake_score: {float(local_result['fake_score']):.4f}\n"
+        f"Local explanation: {local_result['explanation']}\n"
+        f"Routing reasons: {reasons}\n"
+        f"Mask area ratio: {float(local_result.get('mask_area_ratio', 0.0)):.4f}"
     )
 
 
@@ -112,6 +139,26 @@ def _normalize_payload(payload: Mapping[str, Any], local_explanation: str, sourc
     }
 
 
+def _normalize_rejudge_payload(payload: Mapping[str, Any], local_result: Mapping[str, Any], source: str) -> dict[str, Any]:
+    remote_label = str(payload.get("remote_label", "")).strip().lower()
+    if remote_label not in {"real", "fake"}:
+        raise ValueError("Remote response remote_label must be real or fake")
+
+    try:
+        remote_fake_score = float(payload.get("remote_fake_score"))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Remote response remote_fake_score is invalid") from exc
+    remote_fake_score = min(max(remote_fake_score, 0.0), 1.0)
+
+    base = _normalize_payload(payload, local_explanation=str(local_result["explanation"]), source=source)
+    base["remote_label"] = remote_label
+    base["remote_fake_score"] = remote_fake_score
+    decision_rationale = payload.get("decision_rationale")
+    if decision_rationale is not None:
+        base["decision_rationale"] = str(decision_rationale).strip()
+    return base
+
+
 def _get_api_key(remote_cfg: Mapping[str, Any]) -> str | None:
     raw_api_key = remote_cfg.get("api_key")
     if raw_api_key is not None:
@@ -123,30 +170,11 @@ def _get_api_key(remote_cfg: Mapping[str, Any]) -> str | None:
     return get_env(api_key_env)
 
 
-def enhance_explanation(
-    image_path: str | Path,
-    mask_path: str | Path,
-    local_result: Mapping[str, Any],
-    cfg: Mapping[str, Any],
-) -> dict[str, Any]:
-    inference_cfg = cfg.get("inference") or {}
-    remote_cfg = inference_cfg.get("remote_explanation") or {}
-    local_explanation = str(local_result["explanation"])
-    if not remote_cfg.get("enabled", False):
-        return _local_response(local_explanation, source="local")
-
-    fallback_to_local = bool(remote_cfg.get("fallback_to_local", True))
+def _request_remote_json(prompt_text: str, image: str | Path | bytes, mask_image: str | Path | bytes, remote_cfg: Mapping[str, Any]) -> Mapping[str, Any]:
     api_key_env = str(remote_cfg.get("api_key_env", "DASHSCOPE_API_KEY"))
     api_key = _get_api_key(remote_cfg)
     if not api_key:
-        fallback = _local_response(
-            local_explanation,
-            source="local_fallback",
-            fallback_reason=f"Missing remote_explanation.api_key and environment variable: {api_key_env}",
-        )
-        if fallback_to_local:
-            return fallback
-        raise RuntimeError(fallback["fallback_reason"])
+        raise RuntimeError(f"Missing remote_explanation.api_key and environment variable: {api_key_env}")
 
     api_base = str(remote_cfg.get("api_base", "https://dashscope.aliyuncs.com/compatible-mode/v1")).rstrip("/")
     model = str(remote_cfg.get("model", "qwen3-vl-plus"))
@@ -157,14 +185,14 @@ def enhance_explanation(
         "messages": [
             {
                 "role": "system",
-                "content": "You improve English explanations for an image forgery detection pipeline. Return JSON only.",
+                "content": "You are a multimodal assistant for an image forgery detection pipeline. Return JSON only.",
             },
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": _build_prompt(local_result)},
-                    {"type": "image_url", "image_url": {"url": _encode_image_as_data_url(image_path)}},
-                    {"type": "image_url", "image_url": {"url": _encode_image_as_data_url(mask_path)}},
+                    {"type": "text", "text": prompt_text},
+                    {"type": "image_url", "image_url": {"url": _encode_image_as_data_url(image)}},
+                    {"type": "image_url", "image_url": {"url": _encode_image_as_data_url(mask_image)}},
                 ],
             },
         ],
@@ -180,16 +208,57 @@ def enhance_explanation(
         },
         method="POST",
     )
+    with request.urlopen(req, timeout=timeout_sec) as response:
+        response_body = json.loads(response.read().decode("utf-8"))
+    raw_content = _extract_text_content(response_body)
+    parsed = json.loads(_strip_code_fences(raw_content))
+    if not isinstance(parsed, Mapping):
+        raise ValueError("Remote response JSON is not an object")
+    return parsed
+
+
+def enhance_explanation(
+    image_path: str | Path,
+    mask_path: str | Path | bytes,
+    local_result: Mapping[str, Any],
+    cfg: Mapping[str, Any],
+) -> dict[str, Any]:
+    inference_cfg = cfg.get("inference") or {}
+    remote_cfg = inference_cfg.get("remote_explanation") or {}
+    local_explanation = str(local_result["explanation"])
+    if not remote_cfg.get("enabled", False):
+        return _local_response(local_explanation, source="local")
+
+    fallback_to_local = bool(remote_cfg.get("fallback_to_local", True))
+    try:
+        parsed = _request_remote_json(_build_prompt(local_result), image_path, mask_path, remote_cfg)
+        return _normalize_payload(parsed, local_explanation=local_explanation, source="remote")
+    except (RuntimeError, error.URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
+        fallback = _local_response(local_explanation, source="local_fallback", fallback_reason=str(exc))
+        if fallback_to_local:
+            return fallback
+        raise RuntimeError(str(exc)) from exc
+
+
+def rejudge_hard_case(
+    image_path: str | Path,
+    mask_path: str | Path | bytes,
+    local_result: Mapping[str, Any],
+    routing_reasons: list[str],
+    cfg: Mapping[str, Any],
+) -> dict[str, Any]:
+    inference_cfg = cfg.get("inference") or {}
+    remote_cfg = inference_cfg.get("remote_explanation") or {}
+    fallback_to_local = bool(remote_cfg.get("fallback_to_local", True))
+    local_explanation = str(local_result["explanation"])
+
+    if not remote_cfg.get("enabled", False):
+        return _local_response(local_explanation, source="local")
 
     try:
-        with request.urlopen(req, timeout=timeout_sec) as response:
-            response_body = json.loads(response.read().decode("utf-8"))
-        raw_content = _extract_text_content(response_body)
-        parsed = json.loads(_strip_code_fences(raw_content))
-        if not isinstance(parsed, Mapping):
-            raise ValueError("Remote response JSON is not an object")
-        return _normalize_payload(parsed, local_explanation=local_explanation, source="remote")
-    except (error.URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
+        parsed = _request_remote_json(_build_rejudge_prompt(local_result, routing_reasons), image_path, mask_path, remote_cfg)
+        return _normalize_rejudge_payload(parsed, local_result=local_result, source="remote_rejudge")
+    except (RuntimeError, error.URLError, TimeoutError, json.JSONDecodeError, ValueError) as exc:
         fallback = _local_response(local_explanation, source="local_fallback", fallback_reason=str(exc))
         if fallback_to_local:
             return fallback
