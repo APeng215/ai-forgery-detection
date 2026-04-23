@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>多媒体技术课设答辩汇报</title>
+  <style>
+    :root {
+      --bg: #fff8ef;
+      --bg2: #fdf3e5;
+      --panel: #fffaf3;
+      --panel-strong: #fff2e2;
+      --line: #efd5b7;
+      --text: #4d2f1f;
+      --muted: #88614a;
+      --accent: #c77b2b;
+      --accent-2: #e39a3d;
+      --ok: #2f855a;
+      --warn: #b26a1f;
+      --danger: #b83a3a;
+      --shadow: 0 10px 28px rgba(108, 62, 25, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      color: var(--text);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 8% 10%, rgba(227, 154, 61, 0.16), transparent 24%),
+        radial-gradient(circle at 92% 8%, rgba(199, 123, 43, 0.14), transparent 24%),
+        linear-gradient(160deg, var(--bg), var(--bg2));
+      overflow: hidden;
+    }
+
+    .app {
+      width: 100%;
+      height: 100%;
+      padding: 14px;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 14px;
+    }
+
+    .sidebar {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      overflow: auto;
+    }
+
+    .sidebar h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.3;
+      color: #7a4319;
+    }
+
+    .sidebar p {
+      margin: 7px 0 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .source {
+      border: 1px solid #efcca5;
+      border-radius: 10px;
+      background: #fff2de;
+      padding: 10px;
+      font-size: 12px;
+      color: #74441f;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .toc {
+      display: grid;
+      gap: 7px;
+    }
+
+    .toc-btn {
+      width: 100%;
+      text-align: left;
+      border: 1px solid #edd0ae;
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #72431f;
+      background: #fff8ee;
+      cursor: pointer;
+      transition: 0.16s ease;
+    }
+
+    .toc-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--accent);
+    }
+
+    .toc-btn.active {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, #ffe8ca, #fff4e7);
+      box-shadow: inset 0 0 0 1px rgba(199, 123, 43, 0.18);
+    }
+
+    .stage {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      min-height: 0;
+    }
+
+    .topbar {
+      border-bottom: 1px solid var(--line);
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      background: #fff1df;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .counter {
+      border: 1px solid #e8bf93;
+      border-radius: 999px;
+      padding: 5px 10px;
+      min-width: 84px;
+      text-align: center;
+      font-size: 12px;
+      color: #844a20;
+      background: #fff9f0;
+    }
+
+    .slides {
+      min-height: 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .slide {
+      display: none;
+      width: 100%;
+      height: 100%;
+      padding: 18px;
+      overflow: auto;
+      animation: fade 0.18s ease;
+    }
+
+    .slide.active { display: block; }
+
+    @keyframes fade {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.25;
+      color: #7a4319;
+    }
+
+    .subtitle {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .takeaway {
+      border: 1px solid #ebc9a5;
+      border-radius: 10px;
+      background: #fff3e5;
+      padding: 8px 10px;
+      font-size: 13px;
+      color: #74441f;
+      margin-bottom: 12px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      border: 1px solid #edd1b2;
+      border-radius: 12px;
+      background: #fffaf4;
+      padding: 12px;
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      color: #834919;
+    }
+
+    .card p,
+    .card li {
+      margin: 0;
+      color: #6d4832;
+      font-size: 13px;
+      line-height: 1.72;
+    }
+
+    .card ul { margin: 7px 0 0; padding-left: 18px; }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .chip {
+      border: 1px solid #eecda9;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 12px;
+      color: #84481f;
+      background: #fff4e6;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6px;
+      font-size: 12px;
+      background: #fffdf9;
+    }
+
+    th, td {
+      border: 1px solid #f0d8bf;
+      padding: 6px;
+      text-align: center;
+      color: #744321;
+    }
+
+    th {
+      background: #ffeed8;
+      font-weight: 700;
+      color: #7d4318;
+    }
+
+    .ok { color: var(--ok); font-weight: 600; }
+    .warn { color: var(--warn); font-weight: 600; }
+    .danger { color: var(--danger); font-weight: 600; }
+
+    .frame {
+      margin-top: 8px;
+      border: 1px solid #efd0ae;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #fffaf4;
+      height: 360px;
+    }
+
+    .frame iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+    }
+
+    .note {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .footer {
+      border-top: 1px solid var(--line);
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
+      background: #fff1df;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 12px;
+      color: #87562f;
+    }
+
+    .controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn {
+      border: 1px solid #e8be92;
+      border-radius: 8px;
+      background: #fff9f1;
+      color: #7f4920;
+      padding: 5px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .btn:hover { border-color: var(--accent); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    @media (max-width: 1180px) {
+      .app { grid-template-columns: 250px 1fr; }
+      .slide h2 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <h1>多媒体技术课设答辩</h1>
+      <p>AI 伪造图像检测、解释与定位<br/>答辩人：谢鹏、陈冠宇</p>
+      <div class="source">
+        本页仅使用项目内证据组织：<br/>
+        html design prompt / 项目过程记录 / 方案A对比JSON / 训练推理架构图
+      </div>
+      <div class="toc" id="toc"></div>
+    </aside>
+
+    <main class="stage">
+      <div class="topbar">
+        <div class="meta" id="meta">课设汇报 · PPT 分页展示</div>
+        <div class="counter" id="counter">1 / 13</div>
+      </div>
+
+      <div class="slides" id="slides">
+        <section class="slide active" data-title="1. 封面">
+          <h2>多媒体技术课设答辩</h2>
+          <p class="subtitle">AI 伪造图像检测与解释：检测（分类）+ 解释（文本）+ 定位（分割）</p>
+          <div class="takeaway"><strong>核心目标：</strong>构建统一模型，在课程验收集上同时输出真假判断、伪造原因解释和伪造区域定位。</div>
+          <div class="grid two">
+            <div class="card">
+              <h3>答辩信息</h3>
+              <ul>
+                <li>课程：多媒体技术课程设计</li>
+                <li>课题：AI 伪造图像检测与解释</li>
+                <li>答辩人：谢鹏、陈冠宇</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>汇报结构</h3>
+              <ul>
+                <li>数据与架构选择</li>
+                <li>两轮 smoke 与正式测试</li>
+                <li>问题修复与性能诊断</li>
+                <li>线上增强 A/B/C 方案结论</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="2. 数据集选择">
+          <h2>数据集选择：互补融合</h2>
+          <p class="subtitle">从“单数据集不满足三任务”出发，组合课程数据与 GenImage 做互补。</p>
+          <div class="takeaway"><strong>结论：</strong>课程数据更适合解释/定位，GenImage 提供真假分类信号，混合后才能支撑统一三任务训练。</div>
+          <div class="grid two">
+            <div class="card">
+              <h3>初始问题</h3>
+              <ul>
+                <li>课程参考集缺少完整分类训练信息</li>
+                <li>单一来源难同时覆盖分类、解释、定位</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>最终选择</h3>
+              <ul>
+                <li>分类：引入 GenImage 数据</li>
+                <li>解释/定位：使用课程相关数据</li>
+                <li>训练目标：统一模型三头联合输出</li>
+              </ul>
+              <div class="chips">
+                <span class="chip">Acc / AP</span>
+                <span class="chip">BLEU / ROUGE-L</span>
+                <span class="chip">IoU / PixF1</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="3. 训练架构">
+          <h2>训练架构：混合数据的统一多任务框架</h2>
+          <p class="subtitle">单张图进入共享骨干网络，同时产出分类 logits、解释特征、定位 mask logits。</p>
+          <div class="takeaway"><strong>结论：</strong>通过 partial labels（has_cls / has_exp / has_loc）实现“不同来源样本按任务可用标签参与训练”。</div>
+          <div class="card">
+            <h3>架构图（项目现有素材）</h3>
+            <div class="frame">
+              <iframe src="训练推理架构图.html" title="训练推理架构图"></iframe>
+            </div>
+            <p class="note">展示内容来自项目已有 `训练推理架构图.html`，用于说明训练与推理链路。</p>
+          </div>
+        </section>
+
+        <section class="slide" data-title="4. 训练策略">
+          <h2>训练策略：先热身再联合</h2>
+          <p class="subtitle">每次关键改动后先跑 smoke 验证链路，再进入正式训练与验收评估。</p>
+          <div class="takeaway"><strong>结论：</strong>两阶段策略降低了改动风险，问题可以在小成本阶段提前暴露并修复。</div>
+          <div class="grid three">
+            <div class="card">
+              <h3>Stage A（分类热身）</h3>
+              <ul>
+                <li>先稳定真假分类能力</li>
+                <li>快速验证数据读入与损失收敛</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>Stage B（联合训练）</h3>
+              <ul>
+                <li>分类 + 解释 + 定位联合优化</li>
+                <li>在 partial labels 约束下共享骨干</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>验证闭环</h3>
+              <ul>
+                <li>smoke：看链路是否打通</li>
+                <li>formal：看课程验收指标</li>
+                <li>单图推理：看可视化结果是否合理</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="5. 第一次冒烟测试">
+          <h2>第一次冒烟测试：链路打通，但定位为 0</h2>
+          <p class="subtitle">首次 smoke 已跑通三任务流程；分类表现高，解释有初步相似度，定位指标为 0。</p>
+          <div class="takeaway"><strong>结论：</strong>流程可运行，但定位监督链路存在关键问题，必须先修复再谈正式提升。</div>
+          <div class="grid two">
+            <div class="card">
+              <h3>首次 smoke 指标</h3>
+              <table>
+                <tr><th>Acc</th><th>AP</th><th>BLEU</th><th>ROUGE-L</th><th>IoU</th><th>PixF1</th></tr>
+                <tr><td>1.0000</td><td>1.0000</td><td>0.4069</td><td>0.2893</td><td class="danger">0.0000</td><td class="danger">0.0000</td></tr>
+              </table>
+            </div>
+            <div class="card">
+              <h3>用 smoke 模型验收课程数据</h3>
+              <table>
+                <tr><th>Acc</th><th>AP</th><th>BLEU</th><th>ROUGE-L</th><th>IoU</th><th>PixF1</th></tr>
+                <tr><td>0.5950</td><td>0.6990</td><td>0.4383</td><td>0.2923</td><td class="danger">0.0000</td><td class="danger">0.0000</td></tr>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="6. 问题修复">
+          <h2>问题修复：定位全 0 的根因与闭环验证</h2>
+          <p class="subtitle">通过数据与阈值链路排查，定位到 mask 生成值错误导致监督被清空。</p>
+          <div class="takeaway"><strong>结论：</strong>`polygon_to_mask` 前景值由 1 改 255 后，定位训练与评估恢复非零，单图推理 mask 不再纯黑。</div>
+          <div class="grid two">
+            <div class="card">
+              <h3>问题原因</h3>
+              <ul>
+                <li>`polygon_to_mask()` 前景值被写成 1</li>
+                <li>`ToTensor()` 后变成 1/255</li>
+                <li>再经 `> 0.5` 阈值后被全部清空</li>
+                <li>训练和评估都等价于全零 mask 监督</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>修复方式与结果</h3>
+              <ul>
+                <li>将前景值从 1 改为 255</li>
+                <li>修复后 smoke：IoU 0.1048，PixP 0.3013，PixR 0.1662，PixF1 0.2142</li>
+                <li>单图推理：预测 mask 不再为纯黑图</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="7. 分类偏低诊断">
+          <h2>诊断分类偏低：关键是生成器域偏移</h2>
+          <p class="subtitle">第一次正式测试后分类偏低，进一步做课程 fake 来源统计与训练集来源对照。</p>
+          <div class="takeaway"><strong>结论：</strong>主问题不是阈值，而是训练 fake 生成器覆盖不足，必须补充多源生成器数据。</div>
+          <div class="grid two">
+            <div class="card">
+              <h3>课程 fake 来源（多生成器）</h3>
+              <p>adm、biggan、glide/vqdm(1000)、midjourney、sdv4、sdv5、wukong。</p>
+              <div class="chips">
+                <span class="chip">多域分布</span>
+                <span class="chip">难度差异显著</span>
+              </div>
+            </div>
+            <div class="card">
+              <h3>当时训练 fake 来源（单生成器）</h3>
+              <ul>
+                <li>仅 `adm`：train/ai 162000，val/ai 6000</li>
+                <li>新增接入 `biggan` 作为第二数据源</li>
+                <li>配置从 `imagenet_root` 扩展为 `imagenet_roots`</li>
+                <li>采样改为多源汇总后固定 seed 随机截样</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="8. 第二次冒烟测试">
+          <h2>第二次冒烟测试：多数据源改动接线成功</h2>
+          <p class="subtitle">在多数据源配置下重新跑 smoke，验证流程稳定可跑通。</p>
+          <div class="takeaway"><strong>结论：</strong>smoke 指标用于链路验证，不代表正式训练上限，但证明改动正确接入。</div>
+          <div class="card">
+            <h3>smoke（多数据源）指标</h3>
+            <table>
+              <tr><th>Acc</th><th>AP</th><th>BLEU</th><th>ROUGE-L</th><th>IoU</th><th>PixP</th><th>PixR</th><th>PixF1</th></tr>
+              <tr>
+                <td>0.5224</td><td>0.4470</td><td>0.4260</td><td>0.3270</td>
+                <td>0.0752</td><td>0.1519</td><td>0.1884</td><td>0.1682</td>
+              </tr>
+            </table>
+          </div>
+        </section>
+
+        <section class="slide" data-title="9. 第二次正式测试">
+          <h2>第二次正式测试：分类与定位显著提升</h2>
+          <p class="subtitle">修复定位监督 + 多数据源分类配置后，课程验收指标整体改善。</p>
+          <div class="takeaway"><strong>结论：</strong>整体收益明确，但生成器拆分显示泛化仍集中在 adm/biggan，未覆盖生成器仍是短板。</div>
+          <div class="grid two">
+            <div class="card">
+              <h3>课程验收总指标</h3>
+              <table>
+                <tr><th>Acc</th><th>AP</th><th>BLEU</th><th>ROUGE-L</th><th>IoU</th><th>PixP</th><th>PixR</th><th>PixF1</th></tr>
+                <tr>
+                  <td class="ok">0.7000</td><td class="ok">0.8363</td><td>0.4271</td><td>0.2985</td>
+                  <td class="ok">0.1501</td><td class="ok">0.3447</td><td class="ok">0.2673</td><td class="ok">0.3011</td>
+                </tr>
+              </table>
+            </div>
+            <div class="card">
+              <h3>按生成器拆分（Acc）</h3>
+              <table>
+                <tr><th>生成器</th><th>Acc</th><th>fake recall</th><th>avg fake score</th></tr>
+                <tr><td>adm</td><td>0.88</td><td>0.88</td><td>0.8766</td></tr>
+                <tr><td>biggan</td><td>1.00</td><td>1.00</td><td>1.0000</td></tr>
+                <tr><td>glide/vqdm1000</td><td class="warn">0.12</td><td class="warn">0.12</td><td>0.1595</td></tr>
+                <tr><td>midjourney</td><td class="warn">0.16</td><td class="warn">0.16</td><td>0.1886</td></tr>
+                <tr><td>sdv4</td><td>0.64</td><td>0.64</td><td>0.5880</td></tr>
+                <tr><td>sdv5</td><td class="warn">0.40</td><td class="warn">0.40</td><td>0.4350</td></tr>
+                <tr><td>wukong</td><td class="warn">0.24</td><td class="warn">0.24</td><td>0.2800</td></tr>
+                <tr><td>real</td><td>0.955</td><td>-</td><td>0.0731</td></tr>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="10. 线上增强方案">
+          <h2>线上模型辅助增强：方案设计</h2>
+          <p class="subtitle">围绕“本地稳定主干 + 远程能力补强”，设计 4 个方案并实际尝试前 3 个。</p>
+          <div class="takeaway"><strong>结论：</strong>方案设计完整，但线上链路受稳定性与一致性约束，必须做策略化接入而非全量替换。</div>
+          <div class="grid two">
+            <div class="card">
+              <h3>方案概览</h3>
+              <ul>
+                <li><strong>A 解释增强：</strong>本地判别与定位不变，远程只增强 explanation</li>
+                <li><strong>B 难例复判：</strong>本地先判，边界样本路由远程复判</li>
+                <li><strong>C 离线蒸馏：</strong>采集 teacher 输出蒸馏回本地模型</li>
+                <li><strong>D 长期方向：</strong>持续蒸馏与策略迭代闭环</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>架构参考图</h3>
+              <div class="frame" style="height:260px; margin-top:0;">
+                <iframe src="训练推理架构图.html" title="线上增强架构"></iframe>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="11. 方案A（解释增强）">
+          <h2>方案 A：解释增强（200 样本）</h2>
+          <p class="subtitle">本地模型继续负责分类与定位，远程多模态模型仅生成更自然、更细致解释文本。</p>
+          <div class="takeaway"><strong>结论：</strong>自动指标未优于本地基线，ROUGE-L 接近平局但 BLEU 明显落后，整体效果并不好。</div>
+          <div class="card">
+            <h3>全量对比结果（.cache/local_remote_explanation_compare_course_full.json）</h3>
+            <table>
+              <tr><th>指标</th><th>Local</th><th>Remote</th><th>结论</th></tr>
+              <tr><td>BLEU</td><td>0.4647</td><td>0.3806</td><td class="danger">Remote 下降</td></tr>
+              <tr><td>ROUGE-L</td><td>0.3016</td><td>0.2986</td><td class="warn">基本持平</td></tr>
+              <tr><td>Remote BLEU 更优样本</td><td colspan="2">23 / 200（11.5%）</td><td class="danger">占比低</td></tr>
+              <tr><td>Remote ROUGE-L 更优样本</td><td colspan="2">105 / 200（52.5%）</td><td class="warn">过半但整体不增益</td></tr>
+            </table>
+          </div>
+        </section>
+
+        <section class="slide" data-title="12. 方案B（难例复判）">
+          <h2>方案 B：本地先判 + 难例路由远程复判</h2>
+          <p class="subtitle">完成 Plan B 接线后做全量评测，并输出 policy 可观测统计。</p>
+          <div class="takeaway"><strong>结论：</strong>这版策略导致分类下降，且 override 比例高、一致率低；fallback 暴露线上稳定性瓶颈，效果不好。</div>
+          <div class="grid two">
+            <div class="card">
+              <h3>课程验收指标（Plan B）</h3>
+              <table>
+                <tr><th>分类</th><th>解释</th><th>定位</th></tr>
+                <tr><td>Acc 0.6045 / AP 0.7943</td><td>BLEU 0.4124 / ROUGE-L 0.2981</td><td>IoU 0.1501 / PixF1 0.3011</td></tr>
+              </table>
+              <p class="note">相对本地基线，分类明显变差；定位基本不变。</p>
+            </div>
+            <div class="card">
+              <h3>policy 统计（关键片段）</h3>
+              <ul>
+                <li>classification：total 402，routed 81（20.15%）</li>
+                <li>remote response：79（97.53% of routed）</li>
+                <li>remote agreement：18.99%</li>
+                <li>override：64（79.01% of routed）</li>
+                <li>fallback：2（2.47% of routed）</li>
+                <li>explanation：routed 25（12.5%），fallback 3（12.0%）</li>
+                <li>fallback 主因：远程超时、远程 JSON 非法</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="slide" data-title="13. 方案C（离线蒸馏）">
+          <h2>方案 C：离线蒸馏（按 prompt 主口径）</h2>
+          <p class="subtitle">跑通基于 `qwen3-vl-plus` 的 teacher 采集与蒸馏训练，得到 `outputs_llm_distill/best.pt`。</p>
+          <div class="takeaway"><strong>结论：</strong>本版蒸馏呈现“分类/解释下降、定位上升”的分化，不是整体提升。</div>
+          <div class="card">
+            <h3>蒸馏模型 vs 基线模型（课程验收）</h3>
+            <table>
+              <tr><th>模型</th><th>Acc</th><th>AP</th><th>BLEU</th><th>ROUGE-L</th><th>IoU</th><th>PixP</th><th>PixR</th><th>PixF1</th></tr>
+              <tr>
+                <td>蒸馏模型</td><td>0.6766</td><td>0.8036</td><td>0.3996</td><td>0.2765</td><td class="ok">0.1711</td><td class="ok">0.3640</td><td class="ok">0.3059</td><td class="ok">0.3324</td>
+              </tr>
+              <tr>
+                <td>基线模型</td><td class="ok">0.6990</td><td class="ok">0.8325</td><td class="ok">0.4618</td><td class="ok">0.3079</td><td>0.1501</td><td>0.3447</td><td>0.2673</td><td>0.3011</td>
+              </tr>
+            </table>
+          </div>
+          <div class="grid two" style="margin-top:12px;">
+            <div class="card">
+              <h3>观察到的收益</h3>
+              <ul>
+                <li>IoU +0.0210</li>
+                <li>PixF1 +0.0313</li>
+                <li>定位分支有提升趋势</li>
+              </ul>
+            </div>
+            <div class="card">
+              <h3>主要限制因素</h3>
+              <ul>
+                <li>teacher 覆盖率偏低（约 1000 vs Stage B 约 3 万）</li>
+                <li>分类 teacher 监督信息压缩过强</li>
+                <li>teacher 文本分布与课程 explanation 标注风格不一致</li>
+                <li>蒸馏仅在 Stage B 生效，容易偏向定位分支</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="footer">
+        <div>键盘：←/→、PageUp/PageDown、Home/End、Space</div>
+        <div class="controls">
+          <button class="btn" id="prevBtn">上一页</button>
+          <button class="btn" id="nextBtn">下一页</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const toc = document.getElementById('toc');
+    const counter = document.getElementById('counter');
+    const meta = document.getElementById('meta');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+
+    let current = 0;
+
+    slides.forEach((slide, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'toc-btn';
+      btn.textContent = slide.dataset.title || `第 ${idx + 1} 页`;
+      btn.addEventListener('click', () => setSlide(idx));
+      toc.appendChild(btn);
+    });
+
+    function setSlide(index) {
+      current = Math.max(0, Math.min(index, slides.length - 1));
+      slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+      Array.from(toc.children).forEach((btn, i) => btn.classList.toggle('active', i === current));
+      counter.textContent = `${current + 1} / ${slides.length}`;
+      meta.textContent = slides[current].dataset.title || '课设汇报';
+      prevBtn.disabled = current === 0;
+      nextBtn.disabled = current === slides.length - 1;
+    }
+
+    prevBtn.addEventListener('click', () => setSlide(current - 1));
+    nextBtn.addEventListener('click', () => setSlide(current + 1));
+
+    document.addEventListener('keydown', (e) => {
+      if (["ArrowRight", "PageDown", " "].includes(e.key)) {
+        e.preventDefault();
+        setSlide(current + 1);
+      }
+      if (["ArrowLeft", "PageUp"].includes(e.key)) {
+        e.preventDefault();
+        setSlide(current - 1);
+      }
+      if (e.key === 'Home') setSlide(0);
+      if (e.key === 'End') setSlide(slides.length - 1);
+    });
+
+    setSlide(0);
+  </script>
+</body>
+</html>
