@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Codex 答复说明</title>
+  <style>
+    :root {
+      --bg: #fff8ef;
+      --bg2: #fdf3e5;
+      --panel: #fffaf3;
+      --panel-strong: #fff2e2;
+      --line: #efd5b7;
+      --text: #4d2f1f;
+      --muted: #88614a;
+      --accent: #c77b2b;
+      --accent-2: #1f4e79;
+      --ok: #2f855a;
+      --warn: #b26a1f;
+      --shadow: 0 10px 28px rgba(108, 62, 25, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(circle at 8% 10%, rgba(227, 154, 61, 0.16), transparent 24%),
+        radial-gradient(circle at 92% 8%, rgba(31, 78, 121, 0.10), transparent 24%),
+        linear-gradient(160deg, var(--bg), var(--bg2));
+    }
+
+    .page {
+      width: min(1100px, calc(100% - 32px));
+      margin: 24px auto 48px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero, .card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 28px 28px 22px;
+    }
+
+    .hero h1 {
+      margin: 0 0 12px;
+      font-size: 34px;
+      line-height: 1.2;
+      color: #6f3c17;
+    }
+
+    .hero p {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.8;
+      color: var(--muted);
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .tag {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid #efcca5;
+      background: #fff2de;
+      font-size: 12px;
+      color: #74441f;
+    }
+
+    .summary {
+      padding: 18px 22px;
+      background: linear-gradient(135deg, #fff7eb, #fff1dd);
+    }
+
+    .summary h2,
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      line-height: 1.35;
+      color: #7a4319;
+    }
+
+    .summary ul,
+    .card ul {
+      margin: 0;
+      padding-left: 20px;
+      line-height: 1.9;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      padding: 20px 22px;
+    }
+
+    .card p {
+      margin: 0 0 10px;
+      line-height: 1.85;
+    }
+
+    .label {
+      display: inline-block;
+      margin-bottom: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      color: #fff;
+      background: var(--accent-2);
+    }
+
+    code {
+      padding: 2px 6px;
+      border-radius: 6px;
+      background: #f7efe3;
+      color: #7a4319;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 0.95em;
+    }
+
+    .ok { color: var(--ok); font-weight: 600; }
+    .warn { color: var(--warn); font-weight: 600; }
+
+    .footer {
+      padding: 18px 22px;
+      font-size: 13px;
+      line-height: 1.8;
+      color: var(--muted);
+    }
+
+    @media (max-width: 700px) {
+      .hero h1 { font-size: 28px; }
+      .page { width: min(100% - 20px, 1100px); margin-top: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <h1>Codex 答复说明</h1>
+      <p>
+        这份页面整理了上一轮关于 Gemini PPT prompt、训练流程、Plan B / Plan C 术语与代码核对结果的回答，
+        方便后续在答辩材料和 prompt 调整时直接引用。
+      </p>
+      <div class="meta">
+        <span class="tag">项目：AI 伪造图像检测与解释</span>
+        <span class="tag">整理日期：2026-04-24</span>
+        <span class="tag">输出位置：docs 根目录</span>
+      </div>
+    </section>
+
+    <section class="card summary">
+      <h2>已落地修改</h2>
+      <ul>
+        <li><span class="ok">已修改 prompt</span>：训练策略页明确为 <code>smoke → Stage A → Stage B</code>。</li>
+        <li><span class="ok">已修改 prompt</span>：Stage A / B 表述改为与当前代码一致，Stage B 仍包含分类训练。</li>
+        <li><span class="ok">已修改 prompt</span>：第 10 页改为参考 <code>线上大模型辅助增强方案.png</code>，并明确不提 Plan D。</li>
+        <li><span class="ok">已修改 prompt</span>：新增第 14 页“致谢”。</li>
+        <li><span class="ok">已删除 prompt 中不严谨表述</span>：去掉“蒸馏仅在 Stage B 生效，更偏向定位分支”。</li>
+      </ul>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <span class="label">1. 训练策略</span>
+        <h2>smoke 的时序</h2>
+        <p>
+          现在 prompt 里已经改成：<code>smoke</code> 是正式训练前的低成本链路验证，
+          用来确认分类、解释、定位三条链路都能正常训练与评估。
+        </p>
+        <p>
+          正确时序是 <code>smoke → Stage A → Stage B</code>，
+          而不是把 smoke 理解成插在 A 和 B 之间的中间步骤。
+        </p>
+      </article>
+
+      <article class="card">
+        <span class="label">2. A / B 分阶段训练</span>
+        <h2>当前代码的真实行为</h2>
+        <p>
+          根据 <code>train_multitask.py</code> 与 <code>README.md</code>：
+        </p>
+        <ul>
+          <li>Stage A：只用分类数据做真假分类热身。</li>
+          <li>Stage B：使用 <code>joint_train = ConcatDataset([stage_a_train, synth_train])</code>。</li>
+          <li>这意味着 Stage B 里分类监督仍然存在，同时叠加解释与定位监督。</li>
+        </ul>
+        <p class="warn">
+          所以“Stage B 只训练解释和定位、不再训练分类”这句话，按当前代码来说是不对的。
+        </p>
+      </article>
+
+      <article class="card">
+        <span class="label">3. 全 0 问题修复</span>
+        <h2>为什么 <code>1/255</code> 会出错</h2>
+        <p>
+          你的直觉是对的：<code>1/255 ≈ 0.0039</code>，确实小于 <code>0.5</code>。
+        </p>
+        <ul>
+          <li>背景原本是 <code>0</code>。</li>
+          <li>错误前景被画成 <code>1</code>。</li>
+          <li><code>ToTensor()</code> 会把 8-bit 灰度缩放到 <code>[0,1]</code>。</li>
+          <li>所以背景变成 <code>0.0</code>，前景变成 <code>1/255</code>。</li>
+          <li>后面再做 <code>(mask_tensor &gt; 0.5).float()</code> 时，前景和背景都会变成 0。</li>
+        </ul>
+        <p>
+          修成 <code>255</code> 后，前景才会变成 <code>1.0</code>，阈值化结果才正常。
+        </p>
+      </article>
+
+      <article class="card">
+        <span class="label">4. 线上增强页</span>
+        <h2>第 10 页参考图怎么用</h2>
+        <p>
+          第 10 页现在要求 Gemini 参考 <code>线上大模型辅助增强方案.png</code>，
+          但只把它当作结构与组织方式参考。
+        </p>
+        <ul>
+          <li>页面只展示方案 A / B / C。</li>
+          <li>明确不要提 Plan D。</li>
+          <li>不要直接照搬原图，需要重新排版成新的答辩页。</li>
+        </ul>
+      </article>
+
+      <article class="card">
+        <span class="label">5. 方案 B</span>
+        <h2>什么是 <code>remote_agreement_rate</code></h2>
+        <p>
+          这里更准确地说，是“远程一致率”，不是“和真值的一致率”。
+        </p>
+        <p>
+          在 <code>src/inference/plan_b.py</code> 里，它的定义是：
+          <code>remote_agreement_rate = remote_agreement_cases / remote_response_cases</code>。
+        </p>
+        <ul>
+          <li>分子：远程返回结果后，与本地判断一致的样本数。</li>
+          <li>分母：远程真正返回了结果的样本数。</li>
+        </ul>
+        <p>
+          所以它衡量的是“本地与远程两套判断之间是否稳定一致”，而不是整体准确率。
+        </p>
+      </article>
+
+      <article class="card">
+        <span class="label">6. 页数调整</span>
+        <h2>已增加致谢页</h2>
+        <p>
+          prompt 已从 13 页调整为 14 页，最后新增一页“致谢”。
+        </p>
+        <p>
+          这样 Gemini 在生成时，会把致谢作为正式页面输出，而不是你后续再手动补。
+        </p>
+      </article>
+
+      <article class="card">
+        <span class="label">7. 方案 C</span>
+        <h2>什么叫“分类监督塌缩”和“伪 logits”</h2>
+        <p>
+          “分类监督塌缩”可以通俗理解为：监督信号变得太单薄，
+          最后几乎只剩“这张偏 fake / 这张偏 real”的硬标签味道，
+          原本更丰富的类别边界和不确定性信息被压扁了。
+        </p>
+        <p>
+          “伪 logits”则是指：这些 logits 不是 teacher 分类头直接前向算出来的，
+          而是后处理“凑”出来的。
+        </p>
+        <p>
+          在 <code>distill/build_cache_from_llm.py</code> 里，流程是：
+        </p>
+        <ul>
+          <li>先从 LLM 输出拿 <code>final_label + confidence</code> 或 <code>fake_score</code>。</li>
+          <li>把它转成 <code>p_fake</code>。</li>
+          <li>再通过 <code>log([1-p, p])</code> 构造两维 logits。</li>
+        </ul>
+        <p>
+          因此它不是 teacher 模型原生分类头输出，而是由标签和置信度映射出来的“伪 logits”。
+        </p>
+      </article>
+
+      <article class="card">
+        <span class="label">8. 方案 C 再核对</span>
+        <h2>“更偏向定位分支”是否成立</h2>
+        <p>
+          我查了 <code>distill/interface.py</code>，当前蒸馏只作用在两部分：
+        </p>
+        <ul>
+          <li><code>classification logits</code></li>
+          <li><code>explanation_features</code></li>
+        </ul>
+        <p>
+          代码里并没有单独的 localization distill loss，
+          所以“蒸馏仅在 Stage B 生效，更偏向定位分支”这句没有直接代码依据。
+        </p>
+        <p class="warn">
+          更准确的说法只能是：蒸馏发生在 Stage B，可能通过共享 backbone 间接影响定位，
+          但目前没有硬证据能直接证明它“偏向定位分支”。
+        </p>
+      </article>
+    </section>
+
+    <section class="card footer">
+      <h2>涉及文件</h2>
+      <p>
+        本页内容对应到的核心文件包括：
+        <code>docs/gemini_prompt_bundle/gemini prompt.md</code>、
+        <code>docs/gemini_prompt_bundle/README.txt</code>、
+        <code>train_multitask.py</code>、
+        <code>src/datasets/multitask_dataset.py</code>、
+        <code>src/inference/plan_b.py</code>、
+        <code>distill/build_cache_from_llm.py</code>、
+        <code>distill/interface.py</code>。
+      </p>
+    </section>
+  </main>
+</body>
+</html>
